@@ -25,13 +25,6 @@ export async function GET(request: NextRequest) {
             cache: "no-store",
         });
         const payload = (await response.json().catch(() => null)) as UpstreamTokenUsageResponse | null;
-        console.log("token usage response", {
-            target,
-            token: maskAuthorization(authorization),
-            status: response.status,
-            data: payload?.data,
-            message: payload?.message,
-        });
         if (response.status === 429) {
             return Response.json({ code: 1, data: null, msg: "余额查询过于频繁，请几分钟后再刷新" }, { status: 429 });
         }
@@ -44,10 +37,4 @@ export async function GET(request: NextRequest) {
         console.error("Failed to query token usage", target, error);
         return Response.json({ code: 1, data: null, msg: "余额查询失败，请稍后重试" }, { status: 502 });
     }
-}
-
-function maskAuthorization(authorization: string) {
-    const token = authorization.replace(/^Bearer\s+/i, "").trim();
-    if (token.length <= 12) return token ? "***" : "";
-    return `${token.slice(0, 6)}...${token.slice(-4)}`;
 }
