@@ -113,7 +113,6 @@ export function AppConfigModal() {
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
                                 <div className="text-sm font-medium">知梦 API Key</div>
-                                <div className="mt-1 text-xs text-stone-500">保存时会通过当前站点模型接口检测 Key；余额可单独刷新。</div>
                             </div>
                             <Button size="small" onClick={refreshBalance} disabled={!Object.keys(apiKeys).length}>
                                 刷新余额

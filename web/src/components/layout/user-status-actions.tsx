@@ -12,7 +12,7 @@ import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { BalanceStatus } from "@/services/api/auth";
-import { formatImageTokenBalance } from "@/types/api-keys";
+import { imageTokenBalancePercent, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, isImageTokenUnlimited, type ImageApiKeys, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
 
 type UserStatusActionsProps = {
     showConfig?: boolean;
@@ -29,15 +29,15 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
     const balanceStatus = useUserStore((state) => state.balanceStatus);
+    const apiKeys = useUserStore((state) => state.apiKeys);
     const apiKeyUsages = useUserStore((state) => state.apiKeyUsages);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
-    const imageTier = useConfigStore((state) => state.config.imageTier);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
-    const balanceText = formatImageTokenBalance(apiKeyUsages[user?.balanceTier || imageTier]);
+    const effectiveBalanceStatus = resolveBalanceStatus(balanceStatus || user?.balanceStatus || "unknown", apiKeys, apiKeyUsages);
     const naturalIconClass = "inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
@@ -58,10 +58,10 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {variant === "canvas" && user ? (
-                <Tooltip title="用户余额" placement="bottom">
+                <Tooltip title={<BalanceTooltipContent apiKeys={apiKeys} usages={apiKeyUsages} />} placement="bottom">
                     <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80" style={{ color: canvasTheme.node.text }}>
-                        <BalanceLight status={balanceStatus || user.balanceStatus || "unknown"} />
-                        <span>{balanceText}</span>
+                        <BalanceLight status={effectiveBalanceStatus} />
+                        <span>用户余额</span>
                     </div>
                 </Tooltip>
             ) : null}
@@ -99,4 +99,42 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
 function BalanceLight({ status }: { status: BalanceStatus }) {
     const color = status === "available" ? "#22c55e" : status === "unavailable" ? "#ef4444" : status === "checking" ? "#f59e0b" : "#9ca3af";
     return <span className="inline-block size-2.5 shrink-0 rounded-full shadow-[0_0_0_2px_rgba(255,255,255,.35)]" style={{ background: color }} />;
+}
+
+function BalanceTooltipContent({ apiKeys, usages }: { apiKeys: ImageApiKeys; usages: ImageTokenUsages }) {
+    return (
+        <div className="w-56 space-y-3 py-1">
+            {IMAGE_KEY_TIERS.map((tier) => (
+                <div key={tier} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="font-medium">{IMAGE_KEY_TIER_LABELS[tier]}</span>
+                        <span className="truncate text-stone-200">{apiKeys[tier] ? formatBalanceMoney(usages[tier]) : "未配置"}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                        <div className="h-full rounded-full bg-emerald-400" style={{ width: `${apiKeys[tier] ? imageTokenBalancePercent(usages[tier]) : 0}%` }} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function resolveBalanceStatus(status: BalanceStatus, apiKeys: ImageApiKeys, usages: ImageTokenUsages): BalanceStatus {
+    if (status === "unavailable") return "unavailable";
+    const configuredTiers = IMAGE_KEY_TIERS.filter((tier) => apiKeys[tier]);
+    if (!configuredTiers.length) return "unknown";
+    const hasMissingUsage = configuredTiers.some((tier) => !usages[tier]);
+    if (hasMissingUsage) return "checking";
+    return configuredTiers.every((tier) => isImageTokenUnlimited(usages[tier]) || imageTokenBalancePercent(usages[tier]) >= 50) ? "available" : "checking";
+}
+
+function formatBalanceMoney(usage: ImageTokenUsage | undefined) {
+    if (!usage) return "未检测";
+    if (isImageTokenUnlimited(usage)) return "无限额度";
+    return `${formatUsd(usage.total_available)} / ${formatUsd(usage.total_granted)}`;
+}
+
+function formatUsd(value: number) {
+    const usd = Math.max(0, Number(value) || 0) / 500000;
+    return `$${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usd)}`;
 }
