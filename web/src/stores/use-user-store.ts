@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { TOKEN_USAGE_REQUEST_DELAY_MS } from "@/constant/env";
 import { AUTH_TOKEN_KEY, adminLogin, fetchCanvasCurrentUser, fetchImageTokenUsage, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
 import { firstAvailableImageKey, isImageTokenUnlimited, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
@@ -21,7 +22,7 @@ type UserStore = {
     setSession: (token: string, user: AuthUser, authMode?: AuthMode, apiKeys?: ImageApiKeys, apiKeyUsages?: ImageTokenUsages) => void;
     clearSession: () => void;
     hydrateUser: () => Promise<void>;
-    refreshApiKeyUsages: () => Promise<ImageTokenUsages>;
+    refreshApiKeyUsages: (options?: { requestDelayMs?: number }) => Promise<ImageTokenUsages>;
     login: (payload: AuthPayload) => Promise<AuthUser>;
     adminLogin: (payload: CanvasAuthPayload) => Promise<AuthUser>;
 };
@@ -136,14 +137,15 @@ export const useUserStore = create<UserStore>()(
                     set({ balanceStatus: "unavailable" });
                 }
             },
-            refreshApiKeyUsages: async () => {
+            refreshApiKeyUsages: async (options) => {
                 const apiKeys = normalizeImageApiKeys(get().apiKeys);
+                const requestDelayMs = options?.requestDelayMs ?? TOKEN_USAGE_REQUEST_DELAY_MS;
                 const usages: ImageTokenUsages = {};
                 let failedMessage = "";
                 let requestCount = 0;
                 for (const [tier, apiKey] of Object.entries(apiKeys) as Array<[ImageKeyTier, string]>) {
                     try {
-                        if (requestCount > 0) await sleep(1200);
+                        if (requestCount > 0 && requestDelayMs > 0) await sleep(requestDelayMs);
                         usages[tier] = await fetchImageTokenUsage(apiKey);
                         requestCount += 1;
                     } catch (error) {
