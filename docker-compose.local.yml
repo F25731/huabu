@@ -12,7 +12,6 @@ services:
       PORT: "8080"
       STORAGE_DRIVER: sqlite
       DATABASE_DSN: data/infinite-canvas.db
-      POOL_API_BASE_URL: https://api.zmoapi.cn
     volumes:
       - ./data:/app/data
     ports:

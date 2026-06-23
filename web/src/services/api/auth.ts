@@ -82,35 +82,51 @@ async function validateApiKey(apiKey: string) {
             validateStatus: () => true
         });
 
+        // 明确的认证失败
         if (response.status === 401 || response.status === 403) {
             throw new Error("API Key 无效或已失效");
         }
 
+        // 服务器错误 - 但不应阻止登录（可能是临时问题）
         if (response.status >= 500) {
-            throw new Error("API 服务暂时不可用，请稍后重试");
+            console.warn(`API 服务返回 ${response.status}，但允许登录`);
+            return true;  // 允许登录，后续使用时再报错
         }
 
-        if (response.status !== 200) {
-            throw new Error(`API 连接失败 (状态码: ${response.status})`);
+        // 成功
+        if (response.status === 200) {
+            // 检查返回数据格式
+            if (!response.data || typeof response.data !== "object") {
+                console.warn("API 返回数据格式异常，但允许登录");
+                return true;
+            }
+            return true;
         }
 
-        // 检查返回数据格式
-        if (!response.data || typeof response.data !== "object") {
-            throw new Error("API 返回数据格式异常");
-        }
-
+        // 其他状态码 - 警告但允许登录
+        console.warn(`API 返回状态码 ${response.status}，但允许登录`);
         return true;
+
     } catch (error) {
-        if (error instanceof Error && error.message.includes("API")) {
+        // 如果是我们主动抛出的错误（401/403），直接抛出
+        if (error instanceof Error && error.message.includes("API Key")) {
             throw error;
         }
+
+        // axios 请求超时
         if ((error as any).code === "ECONNABORTED") {
-            throw new Error("API 连接超时，请检查网络");
+            throw new Error("API 连接超时，请检查网络或稍后重试");
         }
+
+        // 网络连接失败
         if ((error as any).code === "ENOTFOUND" || (error as any).code === "ECONNREFUSED") {
-            throw new Error("无法连接到 API 服务器");
+            throw new Error("无法连接到 API 服务器，请检查网络");
         }
-        throw new Error("API Key 验证失败: " + (error instanceof Error ? error.message : "未知错误"));
+
+        // 其他错误 - 记录但允许登录
+        console.error("API Key 验证遇到错误:", error);
+        console.warn("验证失败但允许登录，后续使用时可能会报错");
+        return true;
     }
 }
 

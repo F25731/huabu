@@ -20,5 +20,3 @@ services:
         value: sqlite
       - key: DATABASE_DSN
         value: data/infinite-canvas.db
-      - key: POOL_API_BASE_URL
-        value: https://api.zmoapi.cn

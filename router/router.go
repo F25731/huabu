@@ -21,11 +21,16 @@ func New() *gin.Engine {
 	api.GET("/auth/linux-do/callback", gin.WrapF(handler.LinuxDoCallback))
 	api.GET("/auth/me", middleware.OptionalAuth, gin.WrapF(handler.CurrentUser))
 	api.GET("/settings", gin.WrapF(handler.Settings))
-	api.POST("/image-jobs/:kind", func(c *gin.Context) {
-		handler.ImageJobCreate(c.Writer, c.Request, c.Param("kind"))
+	v1 := api.Group("/v1", middleware.UserAuth)
+	v1.POST("/images/generations", gin.WrapF(handler.AIImagesGenerations))
+	v1.POST("/images/edits", gin.WrapF(handler.AIImagesEdits))
+	v1.POST("/chat/completions", gin.WrapF(handler.AIChatCompletions))
+	v1.POST("/videos", gin.WrapF(handler.AIVideos))
+	v1.GET("/videos/:id", func(c *gin.Context) {
+		handler.AIVideo(c.Writer, c.Request, c.Param("id"))
 	})
-	api.GET("/image-jobs/status/:id", func(c *gin.Context) {
-		handler.ImageJobStatus(c.Writer, c.Request, c.Param("id"))
+	v1.GET("/videos/:id/content", func(c *gin.Context) {
+		handler.AIVideoContent(c.Writer, c.Request, c.Param("id"))
 	})
 	api.GET("/prompts", middleware.OptionalAuth, gin.WrapF(handler.Prompts))
 	api.GET("/assets", middleware.OptionalAuth, gin.WrapF(handler.Assets))
