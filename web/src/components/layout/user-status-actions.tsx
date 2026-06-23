@@ -41,8 +41,8 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
     useEffect(() => {
-        if (user) void refreshBalanceStatus(imageTier);
-    }, [imageTier, refreshBalanceStatus, user]);
+        if (isLoggedIn) void refreshBalanceStatus(imageTier);
+    }, [imageTier, isLoggedIn, refreshBalanceStatus]);
 
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
