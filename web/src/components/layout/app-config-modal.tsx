@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ModelPicker } from "@/components/model-picker";
 import { FIXED_IMAGE_MODEL, useConfigStore } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
-import { formatImageTokenBalance, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, type ImageApiKeys } from "@/types/api-keys";
+import { formatImageTokenBalance, imageTokenBalancePercent, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, isImageTokenUnlimited, type ImageApiKeys, type ImageTokenUsage } from "@/types/api-keys";
 
 type ApiKeyFormValues = {
     apiKey1k?: string;
@@ -64,11 +64,10 @@ export function AppConfigModal() {
         try {
             await refreshApiKeyUsages();
             message.success("余额已刷新");
-        } catch {
-            message.error("余额刷新失败");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "余额刷新失败");
         }
     };
-    const currentUsage = apiKeyUsages[config.imageTier] || apiKeyUsages[user?.balanceTier || "1k"];
 
     const finishConfig = () => {
         setConfigDialogOpen(false);
@@ -103,7 +102,7 @@ export function AppConfigModal() {
                 <Form form={form} layout="vertical" requiredMark={false}>
                     <div className="mb-4 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-stone-800">
                         <div className="font-medium">当前账号</div>
-                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username} · 余额 ${formatImageTokenBalance(currentUsage)}` : "请先登录知梦 Key"}</div>
+                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username}` : "请先登录知梦 Key"}</div>
                         {!user ? (
                             <Link href="/login" className="mt-2 inline-flex text-xs font-medium text-stone-950 underline-offset-4 hover:underline dark:text-stone-100" onClick={() => setConfigDialogOpen(false)}>
                                 去登录
@@ -123,16 +122,20 @@ export function AppConfigModal() {
                         <div className="grid gap-3 md:grid-cols-3">
                             {IMAGE_KEY_TIERS.map((tier) => (
                                 <div key={tier} className="min-w-0">
-                                    <Form.Item name={`apiKey${tier}` as keyof ApiKeyFormValues} label={`${IMAGE_KEY_TIER_LABELS[tier]} API Key`} className="mb-2">
+                                    <Form.Item name={`apiKey${tier}` as keyof ApiKeyFormValues} label={`${IMAGE_KEY_TIER_LABELS[tier]} API Key`} className="mb-0" style={{ marginBottom: 0 }}>
                                         <Input.Password autoComplete="off" placeholder="sk-..." />
                                     </Form.Item>
-                                    <div className="truncate text-xs text-stone-500">余额：{formatImageTokenBalance(apiKeyUsages[tier])}</div>
+                                    <div className="mt-4">
+                                        <TokenBalanceProgress usage={apiKeyUsages[tier]} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                        <Button className="mt-3" type="default" loading={isLoading} onClick={saveApiKeys}>
-                            保存并检测 Key
-                        </Button>
+                        <div className="mt-5">
+                            <Button type="default" loading={isLoading} onClick={saveApiKeys}>
+                                保存 Key
+                            </Button>
+                        </div>
                     </div>
                     <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
                         <div className="min-w-0">
@@ -154,5 +157,22 @@ export function AppConfigModal() {
                 </Form>
             </div>
         </Modal>
+    );
+}
+
+function TokenBalanceProgress({ usage }: { usage?: ImageTokenUsage }) {
+    const percent = imageTokenBalancePercent(usage);
+    const balanceText = formatImageTokenBalance(usage);
+    const unlimited = isImageTokenUnlimited(usage);
+    return (
+        <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 text-xs text-stone-500">
+                <span>余额</span>
+                <span className="truncate font-medium text-stone-600 dark:text-stone-300">{balanceText}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                <div className={unlimited ? "h-full rounded-full bg-gradient-to-r from-emerald-500 to-lime-400" : "h-full rounded-full bg-emerald-500"} style={{ width: `${percent}%` }} />
+            </div>
+        </div>
     );
 }

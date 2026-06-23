@@ -1,5 +1,5 @@
 ﻿import { apiGet, apiPost } from "@/services/api/request";
-import { firstAvailableImageKey, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, normalizeImageApiKeys, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
+import { firstAvailableImageKey, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, isImageTokenUnlimited, normalizeImageApiKeys, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
 
 export const AUTH_TOKEN_KEY = "infinite-canvas-auth-token-v1";
 
@@ -42,6 +42,7 @@ export type CanvasAuthPayload = {
 
 function createPoolUser(tier: ImageKeyTier, usage?: ImageTokenUsage): AuthUser {
     const displayName = "知梦用户";
+    const unlimited = isImageTokenUnlimited(usage);
     return {
         id: tier,
         username: displayName,
@@ -51,8 +52,8 @@ function createPoolUser(tier: ImageKeyTier, usage?: ImageTokenUsage): AuthUser {
         credits: usage?.total_available || 0,
         quota: usage?.total_granted || 0,
         used: usage?.total_used || 0,
-        unlimited: Boolean(usage?.unlimited_quota),
-        remaining: usage?.unlimited_quota ? null : usage?.total_available || 0,
+        unlimited,
+        remaining: unlimited ? null : usage?.total_available || 0,
         balanceStatus: usage ? "available" : "unknown",
         balanceTier: tier,
         createdAt: "",

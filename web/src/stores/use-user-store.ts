@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 
 import { AUTH_TOKEN_KEY, adminLogin, fetchCanvasCurrentUser, fetchImageTokenUsage, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
-import { firstAvailableImageKey, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
+import { firstAvailableImageKey, isImageTokenUnlimited, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
 
 type AuthMode = "pool" | "admin";
 
@@ -70,12 +70,13 @@ function createStoredPoolUser(existingUser: AuthUser | null, balanceStatus: Bala
 }
 
 function usageToUserBalance(usage?: ImageTokenUsage) {
+    const unlimited = isImageTokenUnlimited(usage);
     return {
         credits: usage?.total_available || 0,
         quota: usage?.total_granted || 0,
         used: usage?.total_used || 0,
-        unlimited: Boolean(usage?.unlimited_quota),
-        remaining: usage?.unlimited_quota ? null : usage?.total_available || 0,
+        unlimited,
+        remaining: unlimited ? null : usage?.total_available || 0,
     };
 }
 
@@ -138,15 +139,15 @@ export const useUserStore = create<UserStore>()(
             refreshApiKeyUsages: async () => {
                 const apiKeys = normalizeImageApiKeys(get().apiKeys);
                 const usages: ImageTokenUsages = {};
-                let failed = false;
+                let failedMessage = "";
                 let requestCount = 0;
                 for (const [tier, apiKey] of Object.entries(apiKeys) as Array<[ImageKeyTier, string]>) {
                     try {
                         if (requestCount > 0) await sleep(1200);
                         usages[tier] = await fetchImageTokenUsage(apiKey);
                         requestCount += 1;
-                    } catch {
-                        failed = true;
+                    } catch (error) {
+                        failedMessage ||= error instanceof Error ? error.message : "余额刷新失败";
                     }
                 }
                 const selected = resolveTierKey(apiKeys);
@@ -154,10 +155,10 @@ export const useUserStore = create<UserStore>()(
                 set({
                     apiKeys,
                     apiKeyUsages: usages,
-                    user: selected ? currentUserWithUsage(get().user, selected.tier, usage, failed ? "unavailable" : "unknown") : get().user,
-                    balanceStatus: failed ? "unavailable" : usage ? "available" : "unknown",
+                    user: selected ? currentUserWithUsage(get().user, selected.tier, usage, failedMessage ? "unavailable" : "unknown") : get().user,
+                    balanceStatus: failedMessage ? "unavailable" : usage ? "available" : "unknown",
                 });
-                if (failed) throw new Error("部分 API Key 检测失败");
+                if (failedMessage) throw new Error(failedMessage);
                 return usages;
             },
             login: async (payload) => {

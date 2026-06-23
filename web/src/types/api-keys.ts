@@ -13,7 +13,7 @@ export type ImageTokenUsage = {
     total_available: number;
     total_granted: number;
     total_used: number;
-    unlimited_quota: boolean;
+    unlimited_quota: boolean | string;
 };
 
 export type ImageTokenUsages = Partial<Record<ImageKeyTier, ImageTokenUsage>>;
@@ -47,10 +47,23 @@ export function normalizeImageKeyTier(value: string | undefined): ImageKeyTier {
 
 export function formatImageTokenBalance(usage: ImageTokenUsage | undefined) {
     if (!usage) return "未检测";
-    if (usage.unlimited_quota) return "无限额度";
-    return `${formatQuota(usage.total_available)} / ${formatQuota(usage.total_granted)}`;
+    if (isImageTokenUnlimited(usage)) return "无限额度";
+    return `${formatQuotaUsd(usage.total_available)} / ${formatQuotaUsd(usage.total_granted)}`;
 }
 
-function formatQuota(value: number) {
-    return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.floor(Number(value) || 0)));
+export function imageTokenBalancePercent(usage: ImageTokenUsage | undefined) {
+    if (!usage) return 0;
+    if (isImageTokenUnlimited(usage)) return 100;
+    const total = Number(usage.total_granted) || 0;
+    if (total <= 0) return 0;
+    return Math.max(0, Math.min(100, (Number(usage.total_available) / total) * 100));
+}
+
+export function isImageTokenUnlimited(usage: ImageTokenUsage | undefined) {
+    return usage?.unlimited_quota === true || String(usage?.unlimited_quota).toLowerCase() === "true";
+}
+
+function formatQuotaUsd(value: number) {
+    const usd = Math.max(0, Number(value) || 0) / 500000;
+    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(usd)} USD`;
 }

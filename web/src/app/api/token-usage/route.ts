@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
             data: payload?.data,
             message: payload?.message,
         });
+        if (response.status === 429) {
+            return Response.json({ code: 1, data: null, msg: "余额查询过于频繁，请几分钟后再刷新" }, { status: 429 });
+        }
         if (!response.ok || !payload?.code || !payload.data) {
             const status = response.status >= 400 ? response.status : 401;
             return Response.json({ code: 1, data: null, msg: payload?.message || "API Key 无效或不属于当前站点" }, { status });
