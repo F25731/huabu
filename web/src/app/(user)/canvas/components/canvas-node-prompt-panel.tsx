@@ -63,7 +63,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 onWheel={(event) => event.stopPropagation()}
             >
                 <LoaderCircle className="size-4 animate-spin" />
-                <span>???????</span>
+                <span>正在生成中</span>
             </div>
         );
     }
@@ -87,7 +87,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 disabled={isDisabled}
                 className="thin-scrollbar h-24 w-full resize-none rounded-xl border px-3 py-2 text-sm leading-5 outline-none"
                 style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }}
-                placeholder={isNodeGenerating ? "???????" : mode === "video" ? "??????????" : mode === "image" ? (hasImageContent ? "???????????????" : "??????????") : hasTextContent ? "????????????????" : "?????????????"}
+                placeholder={isNodeGenerating ? "正在生成中" : mode === "video" ? "输入视频生成要求" : mode === "image" ? (hasImageContent ? "输入图片修改要求" : "输入图片生成要求") : hasTextContent ? "输入文本修改要求" : "输入文本生成要求"}
             />
 
             <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
@@ -114,7 +114,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     className="!h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                     disabled={isDisabled || !prompt.trim()}
                     onClick={submit}
-                    aria-label="鐢熸垚"
+                    aria-label="生成"
                 >
                     <span className="flex items-center gap-1.5">
                         {isRunning ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}

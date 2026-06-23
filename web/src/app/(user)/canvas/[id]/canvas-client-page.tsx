@@ -155,15 +155,15 @@ function ConnectionCreateMenu({ pending, onCreate, onClose }: { pending: Pending
         >
             <div className="mb-2 flex items-center justify-between px-1">
                 <span className="text-sm font-medium" style={{ color: theme.node.muted }}>
-                    寮曠敤璇ヨ妭鐐圭敓鎴?                </span>
-                <button type="button" className="grid size-7 place-items-center rounded-lg text-base opacity-55 transition hover:bg-white/10 hover:opacity-100" onClick={onClose} aria-label="鍏抽棴">
-                    脳
+                    引用该节点生成                </span>
+                <button type="button" className="grid size-7 place-items-center rounded-lg text-base opacity-55 transition hover:bg-white/10 hover:opacity-100" onClick={onClose} aria-label="关闭">
+                    ×
                 </button>
             </div>
             <div className="grid gap-1">
-                <ConnectionCreateOption theme={theme} icon={<List className="size-5" />} title="????" description="???????????" onClick={() => onCreate(CanvasNodeType.Text)} />
-                <ConnectionCreateOption theme={theme} icon={<ImageIcon className="size-5" />} title="鍥剧墖鐢熸垚" onClick={() => onCreate(CanvasNodeType.Image)} />
-                <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-5" />} title="閰嶇疆鑺傜偣" description="妯″瀷銆佸昂瀵搞€佹暟閲忓拰杈撳叆椤哄簭" onClick={() => onCreate(CanvasNodeType.Config)} />
+                <ConnectionCreateOption theme={theme} icon={<List className="size-5" />} title="文本生成" description="根据引用内容生成文本" onClick={() => onCreate(CanvasNodeType.Text)} />
+                <ConnectionCreateOption theme={theme} icon={<ImageIcon className="size-5" />} title="图片生成" onClick={() => onCreate(CanvasNodeType.Image)} />
+                <ConnectionCreateOption theme={theme} icon={<Settings2 className="size-5" />} title="配置节点" description="模型、尺寸、数量和输入顺序" onClick={() => onCreate(CanvasNodeType.Config)} />
             </div>
         </div>
     );
@@ -305,9 +305,9 @@ function InfiniteCanvasPage() {
         (error: unknown) => {
             if (error instanceof AiRequestError && error.kind === "auth") {
                 modal.error({
-                    title: "Key ???????",
-                    content: "???? Key ????????????????? Key?",
-                    okText: "???",
+                    title: "Key 无效或已过期",
+                    content: "当前 Key 不可用，请重新登录或更换 Key。",
+                    okText: "知道了",
                     onOk: () => {
                         clearSession();
                         router.push("/login");
@@ -317,17 +317,17 @@ function InfiniteCanvasPage() {
             }
             if (error instanceof AiRequestError && error.kind === "quota") {
                 modal.warning({
-                    title: "????",
-                    content: "?? Key ????????????????????????????????????",
-                    okText: "???",
+                    title: "余额不足",
+                    content: "当前 Key 余额不足或额度已用完，请更换 Key 后再试。",
+                    okText: "知道了",
                 });
                 return true;
             }
             if (error instanceof AiRequestError && error.kind === "upstream_auth") {
                 modal.warning({
-                    title: "鐢熸垚澶辫触",
-                    content: "?????????????",
-                    okText: "???",
+                    title: "生成失败",
+                    content: "上游鉴权失败，请检查对应模型的 Key。",
+                    okText: "知道了",
                 });
                 return true;
             }
@@ -518,7 +518,7 @@ function InfiniteCanvasPage() {
 
             const connection = normalizeConnection(current.nodeId, targetNodeId, nodesRef.current, current.handleType);
             if (!connection) {
-                message.warning("閰嶇疆鑺傜偣涔嬮棿涓嶈兘杩炴帴");
+                message.warning("配置节点之间不能连接");
                 return;
             }
             const { fromNodeId, toNodeId } = connection;
@@ -537,7 +537,7 @@ function InfiniteCanvasPage() {
             const newNode = createCanvasNode(type, pending.position, metadata);
             const connection = normalizeConnection(pending.connection.nodeId, newNode.id, [...nodesRef.current, newNode], pending.connection.handleType);
             if (!connection) {
-                message.warning("閰嶇疆鑺傜偣涔嬮棿涓嶈兘杩炴帴");
+                message.warning("配置节点之间不能连接");
                 return;
             }
             setNodes((prev) => [...prev, newNode]);
@@ -885,7 +885,7 @@ function InfiniteCanvasPage() {
     }, [applyHistory]);
 
     const createAndOpenProject = useCallback(() => {
-        const id = createProject(`鐭ユⅵ鐢诲竷 ${useCanvasStore.getState().projects.length + 1}`);
+        const id = createProject(`知梦画布 ${useCanvasStore.getState().projects.length + 1}`);
         router.push(`/canvas/${id}`);
     }, [createProject, router]);
 
@@ -1240,7 +1240,7 @@ function InfiniteCanvasPage() {
 
             const node = {
                 ...createCanvasNode(CanvasNodeType.Text, getCanvasCenter(), { content: trimmed, status: NODE_STATUS_SUCCESS }),
-                title: trimmed.slice(0, 32) || "?????",
+                title: trimmed.slice(0, 32) || "文本节点",
             };
 
             setNodes((prev) => [...prev, node]);
@@ -1264,12 +1264,12 @@ function InfiniteCanvasPage() {
             const blob = await imageItem.getType(imageType);
             const file = new File([blob], "clipboard-image.png", { type: imageType });
             void createImageFileNode(file, getCanvasCenter());
-            message.success("?????????");
+            message.success("已粘贴图片到画布");
             return;
         }
 
         const text = await navigator.clipboard.readText();
-        if (createTextNodeFromClipboard(text)) message.success("?????????");
+        if (createTextNodeFromClipboard(text)) message.success("已粘贴文本到画布");
     }, [createImageFileNode, createTextNodeFromClipboard, getCanvasCenter, message]);
 
     useEffect(() => {
@@ -1454,22 +1454,22 @@ function InfiniteCanvasPage() {
         async (node: CanvasNodeData) => {
             if (node.type === CanvasNodeType.Text) {
                 const content = node.metadata?.content?.trim();
-                if (!content) return message.error("娌℃湁鍙繚瀛樼殑鏂囨湰");
-                addAsset({ kind: "text", title: node.metadata?.prompt?.slice(0, 24) || "鐢诲竷鏂囨湰", coverUrl: "", tags: [], source: "Canvas", data: { content }, metadata: { source: "canvas", nodeId: node.id } });
-                message.success("???????");
+                if (!content) return message.error("没有可保存的文本");
+                addAsset({ kind: "text", title: node.metadata?.prompt?.slice(0, 24) || "画布文本", coverUrl: "", tags: [], source: "Canvas", data: { content }, metadata: { source: "canvas", nodeId: node.id } });
+                message.success("已保存到素材");
                 return;
             }
             if (node.type === CanvasNodeType.Video) {
-                if (!node.metadata?.content) return message.error("娌℃湁鍙繚瀛樼殑瑙嗛");
-                addAsset({ kind: "video", title: node.metadata?.prompt?.slice(0, 24) || "鐢诲竷瑙嗛", coverUrl: "", tags: [], source: "Canvas", data: { url: node.metadata.content, storageKey: node.metadata.storageKey, width: node.width, height: node.height, bytes: node.metadata.bytes || 0, mimeType: node.metadata.mimeType || "video/mp4" }, metadata: { source: "canvas", nodeId: node.id, prompt: node.metadata?.prompt } });
-                message.success("???????");
+                if (!node.metadata?.content) return message.error("没有可保存的视频");
+                addAsset({ kind: "video", title: node.metadata?.prompt?.slice(0, 24) || "画布视频", coverUrl: "", tags: [], source: "Canvas", data: { url: node.metadata.content, storageKey: node.metadata.storageKey, width: node.width, height: node.height, bytes: node.metadata.bytes || 0, mimeType: node.metadata.mimeType || "video/mp4" }, metadata: { source: "canvas", nodeId: node.id, prompt: node.metadata?.prompt } });
+                message.success("已保存到素材");
                 return;
             }
-            if (!node.metadata?.content) return message.error("娌℃湁鍙繚瀛樼殑鍥剧墖");
+            if (!node.metadata?.content) return message.error("没有可保存的图片");
             const dataUrl = node.metadata.storageKey ? "" : node.metadata.content;
             addAsset({
                 kind: "image",
-                title: node.metadata?.prompt?.slice(0, 24) || "鐢诲竷鍥剧墖",
+                title: node.metadata?.prompt?.slice(0, 24) || "画布图片",
                 coverUrl: node.metadata.content,
                 tags: [],
                 source: "Canvas",
@@ -1483,7 +1483,7 @@ function InfiniteCanvasPage() {
                 },
                 metadata: { source: "canvas", nodeId: node.id, prompt: node.metadata?.prompt },
             });
-            message.success("???????");
+            message.success("已保存到素材");
         },
         [addAsset, message],
     );
@@ -1553,7 +1553,7 @@ function InfiniteCanvasPage() {
                 const size = fitNodeSize(uploaded.width, uploaded.height, imageConfig.width, imageConfig.height);
                 setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, width: size.width, height: size.height, metadata: { ...item.metadata, ...imageMetadata(uploaded), prompt, ...generationMetadata } } : item)));
             } catch (error) {
-                const errorDetails = error instanceof Error ? error.message : "鐢熸垚澶辫触";
+                const errorDetails = error instanceof Error ? error.message : "生成失败";
                 handleAiRequestError(error);
                 setNodes((prev) => prev.map((item) => (item.id === childId ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
             } finally {
@@ -1582,7 +1582,7 @@ function InfiniteCanvasPage() {
             if (target?.nodeId && target.mode === "reference") {
                 const imageFiles = files.filter((item) => item.type.startsWith("image/"));
                 if (!imageFiles.length) {
-                    message.warning("??????????");
+                    message.warning("请选择图片文件");
                     uploadTargetRef.current = null;
                     event.target.value = "";
                     return;
@@ -1597,14 +1597,14 @@ function InfiniteCanvasPage() {
                         return {
                             id: `image-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
                             type: CanvasNodeType.Image,
-                            title: item.name || `鍙傝€冨浘 ${index + 1}`,
+                            title: item.name || `参考图 ${index + 1}`,
                             position: {
                                 x: targetPosition.x - nodeSize.width - 120,
                                 y: targetPosition.y + index * (nodeSize.height + 36),
                             },
                             width: nodeSize.width,
                             height: nodeSize.height,
-                            metadata: { ...imageMetadata(image), prompt: "鍙傝€冨浘" },
+                            metadata: { ...imageMetadata(image), prompt: "参考图" },
                         } satisfies CanvasNodeData;
                     }),
                 );
@@ -1659,7 +1659,7 @@ function InfiniteCanvasPage() {
                 setSelectedNodeIds(new Set([target.nodeId]));
                 setSelectedConnectionId(null);
                 setDialogNodeId(target.nodeId);
-                message.success(`宸叉坊鍔?${referenceNodes.length} 寮犲弬鑰冨浘锛岃緭鍏ヤ慨鏀硅姹傚悗鐢熸垚`);
+                message.success(`已添加${referenceNodes.length} 张参考图，输入修改要求后生成`);
                 uploadTargetRef.current = null;
                 event.target.value = "";
                 return;
@@ -1753,7 +1753,7 @@ function InfiniteCanvasPage() {
         (file: File) => {
             const position = screenToCanvas((containerRef.current?.getBoundingClientRect().left || 0) + size.width / 2, (containerRef.current?.getBoundingClientRect().top || 0) + size.height / 2);
             void createImageFileNode(file, position);
-            message.success("?????????");
+            message.success("已粘贴图片到画布");
         },
         [createImageFileNode, message, screenToCanvas, size.height, size.width],
     );
@@ -1764,7 +1764,7 @@ function InfiniteCanvasPage() {
     }, []);
 
     const startTitleEditing = useCallback(() => {
-        setTitleDraft(currentProject?.title || "?????");
+        setTitleDraft(currentProject?.title || "未命名画布");
         setTitleEditing(true);
     }, [currentProject?.title]);
 
@@ -1793,7 +1793,7 @@ function InfiniteCanvasPage() {
             const sourceTextContent = sourceNode?.type === CanvasNodeType.Text ? sourceNode.metadata?.content?.trim() || "" : "";
             const editingTextNode = mode === "text" && Boolean(sourceTextContent);
             const generationContext = await hydrateNodeGenerationContext(
-                buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? `璇锋牴鎹姹備慨鏀逛互涓嬫枃鏈€俓n\n鍘熸枃锛歕n${sourceTextContent}\n\n淇敼瑕佹眰锛歕n${prompt}` : prompt),
+                buildNodeGenerationContext(nodeId, nodesRef.current, connectionsRef.current, editingTextNode ? `请根据要求修改以下文本。\n\n原文：\n${sourceTextContent}\n\n修改要求：\n${prompt}` : prompt),
             );
             const effectivePrompt = generationContext.prompt.trim();
             const markSourceStatus = sourceNode?.type !== CanvasNodeType.Image && !editingTextNode;
@@ -1948,7 +1948,7 @@ function InfiniteCanvasPage() {
                                 if (isConfigNode) setNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } } : node)));
                                 return true;
                             } catch (error) {
-                                const errorDetails = error instanceof Error ? error.message : "鐢熸垚澶辫触";
+                                const errorDetails = error instanceof Error ? error.message : "生成失败";
                                 handledFailure = handleAiRequestError(error) || handledFailure;
                                 hasFailure = true;
                                 setNodes((prev) => prev.map((node) => (node.id === targetId ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } } : node)));
@@ -1956,17 +1956,17 @@ function InfiniteCanvasPage() {
                             }
                         }),
                     );
-                    if (hasFailure && !handledFailure) message.error(hasSuccess ? "閮ㄥ垎鍥剧墖鐢熸垚澶辫触" : "鍏ㄩ儴鍥剧墖鐢熸垚澶辫触");
+                    if (hasFailure && !handledFailure) message.error(hasSuccess ? "部分图片生成失败" : "全部图片生成失败");
                     setNodes((prev) =>
                         prev.map((node) =>
                             node.id === nodeId && isConfigNode
-                                ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : "鍏ㄩ儴鍥剧墖鐢熸垚澶辫触" } }
+                                ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : "全部图片生成失败" } }
                                 : node.id === nodeId && isEmptyImageNode
-                                  ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : "鍏ㄩ儴鍥剧墖鐢熸垚澶辫触" } }
+                                  ? { ...node, metadata: { ...node.metadata, status: hasSuccess ? NODE_STATUS_SUCCESS : NODE_STATUS_ERROR, errorDetails: hasSuccess ? undefined : "全部图片生成失败" } }
                                   : targetIds.includes(node.id) && node.metadata?.content
                                     ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_SUCCESS, errorDetails: undefined } }
                                   : node.id === rootId && !hasSuccess
-                                    ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails: "鍏ㄩ儴鍥剧墖鐢熸垚澶辫触" } }
+                                    ? { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails: "全部图片生成失败" } }
                                     : node,
                         ),
                     );
@@ -2045,7 +2045,7 @@ function InfiniteCanvasPage() {
                     ),
                 );
             } catch (error) {
-                const errorDetails = error instanceof Error ? error.message : "鐢熸垚澶辫触";
+                const errorDetails = error instanceof Error ? error.message : "生成失败";
                 if (!handleAiRequestError(error)) message.error(errorDetails);
                 setNodes((prev) =>
                     prev.map((node) => (node.id === nodeId || pendingChildIds.includes(node.id) ? (node.id === nodeId && !markSourceStatus ? node : { ...node, metadata: { ...node.metadata, status: NODE_STATUS_ERROR, errorDetails } }) : node)),
@@ -2082,7 +2082,7 @@ function InfiniteCanvasPage() {
             const context = hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
             const prompt = (savedImageMetadata?.prompt || context?.prompt || "").trim();
             if (!prompt) {
-                message.warning("???????????");
+                message.warning("请输入提示词后再生成");
                 return;
             }
             const generationType = savedImageMetadata?.generationType;
@@ -2090,8 +2090,8 @@ function InfiniteCanvasPage() {
             const retryReferenceImages =
                 hasSavedImageMetadata && savedImageMetadata ? await resolveMetadataReferences(savedImageMetadata) : useReferenceImages ? (context?.referenceImages.length ? context.referenceImages : sourceNodeReferenceImages(batchRoot || sourceNode)) : [];
             if (useReferenceImages && !retryReferenceImages) {
-                message.error("??????????????");
-                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: "??????????????" } } : item)));
+                message.error("参考图已丢失，无法重新生成");
+                setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails: "参考图已丢失，无法重新生成" } } : item)));
                 return;
             }
 
@@ -2137,7 +2137,7 @@ function InfiniteCanvasPage() {
                     ),
                 );
             } catch (error) {
-                const errorDetails = error instanceof Error ? error.message : "鐢熸垚澶辫触";
+                const errorDetails = error instanceof Error ? error.message : "生成失败";
                 if (!handleAiRequestError(error)) message.error(errorDetails);
                 setNodes((prev) => prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, status: NODE_STATUS_ERROR, errorDetails } } : item)));
             } finally {
@@ -2163,7 +2163,7 @@ function InfiniteCanvasPage() {
         (node: CanvasNodeData) => {
             const prompt = (node.metadata?.content || node.metadata?.prompt || "").trim();
             if (!prompt) {
-                message.warning("???????????");
+                message.warning("请输入提示词后再生成");
                 return;
             }
             const sourceNode = nodesRef.current.find((item) => item.id === node.id);
@@ -2200,7 +2200,7 @@ function InfiniteCanvasPage() {
         async (image: CanvasAssistantImage) => {
             const resolvedUrl = image.storageKey ? await resolveImageUrl(image.storageKey, image.dataUrl) : image.dataUrl;
             if (!resolvedUrl) {
-                message.error("鍥剧墖绱犳潗宸蹭涪澶憋紝鏃犳硶鎻掑叆");
+                message.error("图片素材已丢失，无法插入");
                 return;
             }
             const storedImage = image.storageKey ? { url: resolvedUrl, storageKey: image.storageKey, width: 1, height: 1, bytes: 0, mimeType: "image/png" } : await uploadImage(resolvedUrl);
@@ -2266,7 +2266,7 @@ function InfiniteCanvasPage() {
         <main className="flex h-full min-h-0 overflow-hidden" style={{ background: theme.canvas.background, color: theme.node.text }}>
             <section className="relative min-w-0 flex-1 overflow-hidden">
                 <CanvasTopBar
-                    title={currentProject?.title || "?????"}
+                    title={currentProject?.title || "未命名画布"}
                     titleDraft={titleDraft}
                     isTitleEditing={titleEditing}
                     onTitleDraftChange={setTitleDraft}
@@ -2498,7 +2498,7 @@ function InfiniteCanvasPage() {
                 {angleNode?.metadata?.content ? <CanvasNodeAngleDialog dataUrl={angleNode.metadata.content} open={Boolean(angleNode)} onClose={() => setAngleNodeId(null)} onConfirm={(params) => void generateAngleNode(angleNode!, params)} /> : null}
 
                 <Modal
-                    title="鍥剧墖璇︽儏"
+                    title="图片详情"
                     open={Boolean(previewNode?.metadata?.content)}
                     centered
                     onCancel={() => setPreviewNodeId(null)}
@@ -2509,27 +2509,27 @@ function InfiniteCanvasPage() {
                     {previewNode?.metadata?.content ? (
                         <img
                             src={previewNode.metadata.content}
-                            alt={previewNode.title || "鍥剧墖"}
+                            alt={previewNode.title || "图片"}
                             style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }}
                         />
                     ) : null}
                 </Modal>
 
                 <Modal
-                    title="?????"
+                    title="清空画布"
                     open={clearConfirmOpen}
                     centered
                     onCancel={() => setClearConfirmOpen(false)}
                     footer={
                         <>
-                            <Button onClick={() => setClearConfirmOpen(false)}>鍙栨秷</Button>
+                            <Button onClick={() => setClearConfirmOpen(false)}>取消</Button>
                             <Button danger type="primary" onClick={clearCanvas}>
-                                娓呯┖
+                                清空
                             </Button>
                         </>
                     }
                 >
-                    <p className="text-sm opacity-60">??????????????????</p>
+                    <p className="text-sm opacity-60">清空后无法恢复，确认继续吗？</p>
                 </Modal>
 
                 <AssetPickerModal open={assetPickerOpen} defaultTab={assetPickerTab} onInsert={handleAssetInsert} onClose={() => setAssetPickerOpen(false)} />
@@ -2625,20 +2625,20 @@ function CanvasTopBar({
                         trigger={["click"]}
                         menu={{
                             items: [
-                                { key: "home", icon: <Home className="size-4" />, label: "涓婚〉", onClick: onHome },
-                                { key: "projects", icon: <Images className="size-4" />, label: "?????", onClick: onProjects },
+                                { key: "home", icon: <Home className="size-4" />, label: "主页", onClick: onHome },
+                                { key: "projects", icon: <Images className="size-4" />, label: "画布列表", onClick: onProjects },
                                 { type: "divider" },
-                                { key: "new", icon: <Plus className="size-4" />, label: "鏂板缓鐢诲竷", onClick: onCreateProject },
-                                { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: "鍒犻櫎褰撳墠鐢诲竷", onClick: onDeleteProject },
+                                { key: "new", icon: <Plus className="size-4" />, label: "新建画布", onClick: onCreateProject },
+                                { key: "delete", danger: true, icon: <Trash2 className="size-4" />, label: "删除当前画布", onClick: onDeleteProject },
                                 { type: "divider" },
-                                { key: "import", icon: <Upload className="size-4" />, label: "瀵煎叆鍥剧墖", onClick: onImportImage },
+                                { key: "import", icon: <Upload className="size-4" />, label: "导入图片", onClick: onImportImage },
                                 { type: "divider" },
-                                { key: "undo", disabled: !canUndo, icon: <Undo2 className="size-4" />, label: <MenuLabel text="鎾ら攢" shortcut="鈱?Z" />, onClick: onUndo },
-                                { key: "redo", disabled: !canRedo, icon: <Redo2 className="size-4" />, label: <MenuLabel text="閲嶅仛" shortcut="鈱?鈬?Z / 鈱?Y" />, onClick: onRedo },
+                                { key: "undo", disabled: !canUndo, icon: <Undo2 className="size-4" />, label: <MenuLabel text="撤销" shortcut="Ctrl/Cmd + Z" />, onClick: onUndo },
+                                { key: "redo", disabled: !canRedo, icon: <Redo2 className="size-4" />, label: <MenuLabel text="重做" shortcut="Ctrl/Cmd + Shift + Z / Ctrl/Cmd + Y" />, onClick: onRedo },
                             ],
                         }}
                     >
-                        <button type="button" className="grid size-9 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label="鎵撳紑鐢诲竷鑿滃崟">
+                        <button type="button" className="grid size-9 place-items-center rounded-full transition hover:bg-black/5 dark:hover:bg-white/10" style={{ color: theme.node.text }} aria-label="打开画布菜单">
                             <Menu className="size-5" />
                         </button>
                     </Dropdown>
@@ -2662,7 +2662,7 @@ function CanvasTopBar({
                                 type="button"
                                 className="max-w-[280px] truncate border-b border-dashed border-transparent text-left text-lg font-semibold tracking-normal transition hover:border-current"
                                 onDoubleClick={onStartTitleEditing}
-                                title="鍙屽嚮淇敼鐢诲竷鍚嶇О"
+                                title="双击修改画布名称"
                             >
                                 {title}
                             </button>
@@ -2692,27 +2692,27 @@ function CanvasTopBar({
                                 icon={<MessageSquare className="size-4" />}
                                 onClick={onExpandAssistant}
                             >
-                                鍔╂墜
+                                助手
                             </Button>
                         </>
                     ) : null}
                 </div>
             </div>
-            <Modal title="???" open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
+            <Modal title="快捷键" open={shortcutsOpen} onCancel={() => setShortcutsOpen(false)} footer={null} centered>
                 <div className="space-y-2 border-t pt-4 text-sm" style={{ borderColor: theme.node.stroke }}>
-                    <Shortcut keys={["鎷栧姩鐢诲竷"]} value="骞崇Щ瑙嗗浘" />
-                    <Shortcut keys={["婊氳疆"]} value="缂╂斁鐢诲竷" />
-                    <Shortcut keys={["缂╂斁婊戞潌"]} value="绮剧‘璋冩暣缂╂斁" />
-                    <Shortcut keys={["Ctrl / Cmd", "??"]} value="??????" />
-                    <Shortcut keys={["Shift / Ctrl / Cmd", "鐐瑰嚮"]} value="杩藉姞閫夋嫨鑺傜偣" />
-                    <Shortcut keys={["Ctrl / Cmd", "A"]} value="????" />
-                    <Shortcut keys={["Ctrl / Cmd", "C / V"]} value="澶嶅埗 / 绮樿创鑺傜偣锛屾垨绮樿创鍓垏鏉挎枃鏈?鍥剧墖" />
-                    <Shortcut keys={["Ctrl / Cmd", "Z"]} value="鎾ら攢" />
-                    <Shortcut keys={["Ctrl / Cmd", "Shift", "Z"]} value="閲嶅仛" />
-                    <Shortcut keys={["Ctrl / Cmd", "Y"]} value="閲嶅仛" />
-                    <Shortcut keys={["Delete / Backspace"]} value="鍒犻櫎閫変腑" />
-                    <Shortcut keys={["Esc"]} value="?????????" />
-                    <Shortcut keys={["????"]} value="?????" />
+                    <Shortcut keys={["拖动画布"]} value="平移视图" />
+                    <Shortcut keys={["滚轮"]} value="缩放画布" />
+                    <Shortcut keys={["缩放滑杆"]} value="精确调整缩放" />
+                    <Shortcut keys={["Ctrl / Cmd", "滚轮"]} value="以鼠标位置缩放" />
+                    <Shortcut keys={["Shift / Ctrl / Cmd", "点击"]} value="追加选择节点" />
+                    <Shortcut keys={["Ctrl / Cmd", "A"]} value="全选" />
+                    <Shortcut keys={["Ctrl / Cmd", "C / V"]} value="复制 / 粘贴节点，或粘贴剪贴板文本/图片" />
+                    <Shortcut keys={["Ctrl / Cmd", "Z"]} value="撤销" />
+                    <Shortcut keys={["Ctrl / Cmd", "Shift", "Z"]} value="重做" />
+                    <Shortcut keys={["Ctrl / Cmd", "Y"]} value="重做" />
+                    <Shortcut keys={["Delete / Backspace"]} value="删除选中" />
+                    <Shortcut keys={["Esc"]} value="取消选择或关闭弹窗" />
+                    <Shortcut keys={["空格"]} value="临时拖动画布" />
                 </div>
             </Modal>
         </>
