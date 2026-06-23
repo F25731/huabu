@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { dataUrlToFile } from "@/lib/image-utils";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { imageToDataUrl } from "@/services/image-storage";
+import { normalizeImageApiKeys, normalizeImageKeyTier } from "@/types/api-keys";
 import type { ReferenceImage } from "@/types/image";
 
 export type ChatCompletionMessage = {
@@ -199,9 +200,12 @@ function aiApiUrl(config: AiConfig, path: string) {
 }
 
 function aiHeaders(config: AiConfig, contentType?: string) {
-    const token = useUserStore.getState().token.trim();
+    const userStore = useUserStore.getState();
+    const token = userStore.token.trim();
+    const imageTier = normalizeImageKeyTier(config.imageTier);
+    const tierApiKey = normalizeImageApiKeys(userStore.apiKeys)[imageTier]?.trim() || "";
     const apiKey = String(config.apiKey || "").trim();
-    const authToken = config.channelMode === "remote" ? token : apiKey || token;
+    const authToken = config.channelMode === "remote" ? token : tierApiKey || apiKey || token;
     return config.channelMode === "remote"
         ? {
               ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -388,5 +392,4 @@ export async function fetchImageModels(config: AiConfig) {
         throw normalizeAiError(error, "读取模型失败");
     }
 }
-
 
