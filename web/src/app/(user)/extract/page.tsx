@@ -20,13 +20,15 @@ export default function ExtractPromptPage() {
     const token = useUserStore((state) => state.token);
     const user = useUserStore((state) => state.user);
     const authMode = useUserStore((state) => state.authMode);
+    const apiKeys = useUserStore((state) => state.apiKeys);
     const inputRef = useRef<HTMLInputElement>(null);
     const [image, setImage] = useState<{ name: string; dataUrl: string } | null>(null);
     const [result, setResult] = useState("");
     const [extra, setExtra] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const requestConfig = useMemo(() => ({ ...config, model: EXTRACT_MODEL, textModel: EXTRACT_MODEL }), [config]);
+    const oneKApiKey = apiKeys["1k"]?.trim() || "";
+    const requestConfig = useMemo(() => ({ ...config, apiKey: oneKApiKey, imageTier: "1k" as const, model: EXTRACT_MODEL, textModel: EXTRACT_MODEL }), [config, oneKApiKey]);
     const isKeyLoggedIn = Boolean(token && user && authMode === "pool");
     const hasImageCredits = Boolean(user?.unlimited || Number(user?.remaining ?? user?.credits ?? 0) > 0);
 
@@ -46,6 +48,11 @@ export default function ExtractPromptPage() {
         if (!image || loading) return;
         if (!isKeyLoggedIn) {
             message.warning("请先使用号池 Key 登录");
+            router.push("/login?redirect=/extract");
+            return;
+        }
+        if (!oneKApiKey) {
+            message.warning("\u8bf7\u586b\u5199 1k API Key \u540e\u518d\u4f7f\u7528");
             router.push("/login?redirect=/extract");
             return;
         }
