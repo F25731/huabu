@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { App, Button, Form, Input, Modal } from "antd";
 import Link from "next/link";
@@ -51,7 +51,7 @@ export function AppConfigModal() {
                 <Form layout="vertical" requiredMark={false}>
                     <div className="mb-4 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-stone-800">
                         <div className="font-medium">当前账号</div>
-                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username} · 额度 ${user.unlimited ? "无限" : user.remaining ?? user.credits}` : "请先登录号池 Key"}</div>
+                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username} · 用户余额` : "请先登录知梦 Key"}</div>
                         {!user ? (
                             <Link href="/login" className="mt-2 inline-flex text-xs font-medium text-stone-950 underline-offset-4 hover:underline dark:text-stone-100" onClick={() => setConfigDialogOpen(false)}>
                                 去登录

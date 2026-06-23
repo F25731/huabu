@@ -1,17 +1,17 @@
-"use client";
+﻿"use client";
 
-import type { CSSProperties, RefObject } from "react";
+import { useEffect, type CSSProperties, type RefObject } from "react";
 import { Avatar, Dropdown, Tooltip } from "antd";
 import { Keyboard, LogOut, Settings2 } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
 import Link from "next/link";
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { CreditSymbol } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
+import type { BalanceStatus } from "@/services/api/auth";
 
 type UserStatusActionsProps = {
     showConfig?: boolean;
@@ -27,16 +27,23 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
+    const balanceStatus = useUserStore((state) => state.balanceStatus);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const imageTier = useConfigStore((state) => state.config.imageTier);
+    const refreshBalanceStatus = useUserStore((state) => state.refreshBalanceStatus);
     const canvasTheme = canvasThemes[theme];
+    const isLoggedIn = Boolean(user);
     const userName = user?.displayName || user?.username || "";
-    const creditsLabel = user?.unlimited ? "无限" : (user?.remaining ?? user?.credits ?? 0).toLocaleString();
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
     const naturalIconClass = "inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
+    useEffect(() => {
+        if (user) void refreshBalanceStatus(imageTier);
+    }, [imageTier, refreshBalanceStatus, user]);
+
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
         ...(onOpenShortcuts ? [{ key: "shortcuts", icon: <Keyboard className="size-4" />, label: "快捷键", onClick: onOpenShortcuts }] : []),
@@ -53,10 +60,10 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {variant === "canvas" && user ? (
-                <Tooltip title="号池剩余额度" placement="bottom">
-                    <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium tabular-nums opacity-75 transition hover:opacity-100" style={{ color: canvasTheme.node.text }}>
-                        <CreditSymbol className="text-sm leading-none" />
-                        <span>{creditsLabel}</span>
+                <Tooltip title="用户余额" placement="bottom">
+                    <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80 transition hover:opacity-100" style={{ color: canvasTheme.node.text }}>
+                        <BalanceLight status={balanceStatus || user.balanceStatus || "unknown"} />
+                        <span>用户余额</span>
                     </div>
                 </Tooltip>
             ) : null}
@@ -90,3 +97,9 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
         </div>
     );
 }
+
+function BalanceLight({ status }: { status: BalanceStatus }) {
+    const color = status === "available" ? "#22c55e" : status === "unavailable" ? "#ef4444" : status === "checking" ? "#f59e0b" : "#9ca3af";
+    return <span className="inline-block size-2.5 shrink-0 rounded-full shadow-[0_0_0_2px_rgba(255,255,255,.35)]" style={{ background: color }} />;
+}
+

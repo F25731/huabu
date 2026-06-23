@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { create } from "zustand";
@@ -6,6 +6,7 @@ import { persist } from "zustand/middleware";
 
 import { apiGet } from "@/services/api/request";
 import type { AdminPublicSettings } from "@/services/api/admin";
+import { normalizeImageApiKeys, normalizeImageKeyTier, type ImageKeyTier } from "@/types/api-keys";
 
 export const DEFAULT_POOL_API_BASE_URL = "https://api.zmoapi.cn";
 export const FIXED_IMAGE_MODEL = "gpt-image-2";
@@ -16,9 +17,13 @@ export type AiConfig = {
     channelMode: "remote" | "local";
     baseUrl: string;
     apiKey: string;
+    imageTier: ImageKeyTier;
     model: string;
     imageModel: string;
+    videoModel: string;
     textModel: string;
+    videoSeconds: string;
+    vquality: string;
     systemPrompt: string;
     models: string[];
     quality: string;
@@ -32,9 +37,13 @@ export const defaultConfig: AiConfig = {
     channelMode: "local",
     baseUrl: DEFAULT_POOL_API_BASE_URL,
     apiKey: "",
+    imageTier: "1k",
     model: FIXED_IMAGE_MODEL,
     imageModel: FIXED_IMAGE_MODEL,
+    videoModel: FIXED_IMAGE_MODEL,
     textModel: FIXED_IMAGE_MODEL,
+    videoSeconds: "6",
+    vquality: "720",
     systemPrompt: "",
     models: [FIXED_IMAGE_MODEL],
     quality: "auto",
@@ -70,15 +79,17 @@ function normalizeStoredImageCount(count: string | undefined) {
     return String(value);
 }
 
-function isAiConfigReady(_config: AiConfig, model: string) {
-    return Boolean(model.trim()) && Boolean(readAuthToken());
+function isAiConfigReady(config: AiConfig, model: string) {
+    return Boolean(model.trim()) && (config.channelMode === "remote" || Boolean(readAuthToken(config.imageTier)));
 }
 
-function readAuthToken() {
+function readAuthToken(tier?: ImageKeyTier) {
     if (typeof window === "undefined") return "";
     try {
-        const parsed = JSON.parse(window.localStorage.getItem("infinite-canvas-auth-token-v1") || "{}") as { state?: { token?: string } };
-        return String(parsed.state?.token || "").trim();
+        const parsed = JSON.parse(window.localStorage.getItem("infinite-canvas-auth-token-v1") || "{}") as { state?: { token?: string; apiKeys?: Record<string, string> } };
+        const imageTier = normalizeImageKeyTier(tier);
+        const apiKeys = normalizeImageApiKeys({ ...(parsed.state?.apiKeys || {}), "1k": parsed.state?.apiKeys?.["1k"] || parsed.state?.token });
+        return String(apiKeys[imageTier] || "").trim();
     } catch {
         return "";
     }
@@ -115,17 +126,18 @@ export const useConfigStore = create<ConfigStore>()(
         }),
         {
             name: CONFIG_STORE_KEY,
-            version: 2,
+            version: 3,
             partialize: (state) => ({ config: state.config }),
-            migrate: (persisted, version) => {
+            migrate: (persisted) => {
                 const state = persisted as Partial<ConfigStore>;
-                if (version >= 2) return state;
                 return {
                     ...state,
                     config: {
+                        ...defaultConfig,
                         ...state.config,
+                        imageTier: normalizeImageKeyTier(state.config?.imageTier),
                         quality: "auto",
-                        size: "auto",
+                        size: normalizeStoredImageSize(state.config?.size),
                         count: normalizeStoredImageCount(state.config?.count),
                     },
                 };
@@ -137,15 +149,19 @@ export const useConfigStore = create<ConfigStore>()(
                     config: {
                         ...config,
                         apiKey: "",
+                        imageTier: normalizeImageKeyTier(config.imageTier),
                         channelMode: "local",
                         baseUrl: DEFAULT_POOL_API_BASE_URL,
                         model: FIXED_IMAGE_MODEL,
                         imageModel: FIXED_IMAGE_MODEL,
+                        videoModel: FIXED_IMAGE_MODEL,
                         textModel: FIXED_IMAGE_MODEL,
                         models: [FIXED_IMAGE_MODEL],
                         quality: "auto",
                         size: normalizeStoredImageSize(config.size),
                         count: normalizeStoredImageCount(config.count),
+                        videoSeconds: config.videoSeconds || "6",
+                        vquality: config.vquality || "720",
                     },
                 };
             },
@@ -156,7 +172,7 @@ export const useConfigStore = create<ConfigStore>()(
 export function useEffectiveConfig() {
     const config = useConfigStore((state) => state.config);
     const modelChannel = useConfigStore((state) => state.publicSettings?.modelChannel || null);
-    const authToken = readAuthToken();
+    const authToken = readAuthToken(config.imageTier);
     return useMemo(() => ({ ...resolveEffectiveConfig(config, modelChannel), apiKey: authToken }), [authToken, config, modelChannel]);
 }
 

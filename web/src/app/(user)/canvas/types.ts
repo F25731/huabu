@@ -1,4 +1,4 @@
-export type Position = {
+﻿export type Position = {
     x: number;
     y: number;
 };
@@ -17,7 +17,7 @@ export enum CanvasNodeType {
 }
 
 export type CanvasNodeStatus = "idle" | "success" | "loading" | "error";
-export type CanvasGenerationMode = "text" | "image";
+export type CanvasGenerationMode = "text" | "image" | "video";
 export type CanvasImageGenerationType = "generation" | "edit";
 
 export type CanvasNodeMetadata = {
@@ -32,6 +32,7 @@ export type CanvasNodeMetadata = {
     model?: string;
     size?: string;
     quality?: string;
+    imageTier?: string;
     count?: number;
     seconds?: string;
     vquality?: string;
@@ -123,3 +124,4 @@ export type ContextMenuState = {
     y: number;
     nodeId: string;
 };
+

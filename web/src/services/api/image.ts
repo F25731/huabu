@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 import { buildApiUrl, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -118,7 +118,7 @@ function resolveImageDataUrl(item: Record<string, unknown>) {
 
 function parseImagePayload(payload: ImageApiResponse) {
     if (typeof payload.code === "number" && payload.code !== 0) {
-        throw new Error(payload.msg || "请求失败");
+        throw new Error(payload.msg || "璇锋眰澶辫触");
     }
     const images =
         payload.data
@@ -127,7 +127,7 @@ function parseImagePayload(payload: ImageApiResponse) {
             .map((dataUrl) => ({ id: nanoid(), dataUrl })) || [];
 
     if (images.length === 0) {
-        throw new Error("接口没有返回图片");
+        throw new Error("鎺ュ彛娌℃湁杩斿洖鍥剧墖");
     }
 
     return images;
@@ -136,9 +136,9 @@ function parseImagePayload(payload: ImageApiResponse) {
 function requestErrorKind(status: number | undefined, message: string): AiRequestErrorKind {
     const text = message.toLowerCase();
     if (text.includes("token_revoked") || text.includes("invalidated oauth token") || text.includes("encountered invalidated oauth token")) return "upstream_auth";
-    if (/密钥.*(无效|失效|不存在)|key.*(invalid|not found|revoked)/.test(text)) return "auth";
+    if (text.includes("key") && (text.includes("invalid") || text.includes("not found") || text.includes("revoked") || text.includes("unauthorized"))) return "auth";
     if ((status === 401 || status === 403) && !text.includes("/backend-api/")) return "auth";
-    if (status === 402 || text.includes("额度不足") || text.includes("额度没有") || text.includes("no available image quota") || text.includes("insufficient_quota")) return "quota";
+    if (status === 402 || text.includes("quota") || text.includes("balance") || text.includes("insufficient_quota") || text.includes("no available image quota")) return "quota";
     return "other";
 }
 
@@ -156,22 +156,22 @@ function normalizeAiError(error: unknown, fallback: string) {
     if (error instanceof AiRequestError) return error;
     if (axios.isAxiosError(error)) {
         if (error.code === "ECONNABORTED") {
-            return new AiRequestError("生成失败，请重新生成", "other");
+            return new AiRequestError("鐢熸垚澶辫触锛岃閲嶆柊鐢熸垚", "other");
         }
         const responseData = error.response?.data;
         const status = error.response?.status;
-        const message = readResponseErrorMessage(responseData) || (status ? `${fallback}：${status}` : fallback);
+        const message = readResponseErrorMessage(responseData) || (status ? `${fallback}?${status}` : fallback);
         const kind = requestErrorKind(status, message);
-        if (kind === "auth") return new AiRequestError("Key 不存在或已失效，请重新登录", "auth", status);
-        if (kind === "quota") return new AiRequestError("额度没有了，请联系号池管理员加额度，加完后刷新页面即可", "quota", status);
-        if (kind === "upstream_auth") return new AiRequestError("生成失败，请重新生成", "upstream_auth", status);
+        if (kind === "auth") return new AiRequestError("Key ?????????????", "auth", status);
+        if (kind === "quota") return new AiRequestError("???????????????????????????", "quota", status);
+        if (kind === "upstream_auth") return new AiRequestError("??????????", "upstream_auth", status);
         return new AiRequestError(message, "other", status);
     }
     const message = error instanceof Error ? error.message : fallback;
     const kind = requestErrorKind(undefined, message);
-    if (kind === "auth") return new AiRequestError("Key 不存在或已失效，请重新登录", "auth");
-    if (kind === "quota") return new AiRequestError("额度没有了，请联系号池管理员加额度，加完后刷新页面即可", "quota");
-    if (kind === "upstream_auth") return new AiRequestError("生成失败，请重新生成", "upstream_auth");
+    if (kind === "auth") return new AiRequestError("Key ?????????????", "auth");
+    if (kind === "quota") return new AiRequestError("???????????????????????????", "quota");
+    if (kind === "upstream_auth") return new AiRequestError("??????????", "upstream_auth");
     return new AiRequestError(message, "other");
 }
 
@@ -195,21 +195,27 @@ function withSystemPrompt(config: AiConfig, prompt: string) {
 }
 
 function aiApiUrl(config: AiConfig, path: string) {
-    return buildApiUrl(config.baseUrl, path);
+    return config.channelMode === "remote" ? `/api/v1${path}` : buildApiUrl(config.baseUrl, path);
 }
 
 function aiHeaders(config: AiConfig, contentType?: string) {
     const token = useUserStore.getState().token.trim();
     const apiKey = String(config.apiKey || "").trim();
-    const authToken = apiKey || token;
-    return {
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        ...(contentType ? { "Content-Type": contentType } : {}),
-    };
+    const authToken = config.channelMode === "remote" ? token : apiKey || token;
+    return config.channelMode === "remote"
+        ? {
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              ...(contentType ? { "Content-Type": contentType } : {}),
+          }
+        : {
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              ...(contentType ? { "Content-Type": contentType } : {}),
+          };
 }
 
 function refreshRemoteUser(config: AiConfig) {
-    if (useUserStore.getState().token.trim()) void useUserStore.getState().hydrateUser();
+    if (config.channelMode === "remote") return;
+    if (useUserStore.getState().token.trim()) void useUserStore.getState().refreshBalanceStatus(config.imageTier);
 }
 
 function withSystemMessage(config: AiConfig, messages: ChatCompletionMessage[]) {
@@ -234,10 +240,11 @@ export async function requestGeneration(config: AiConfig, prompt: string) {
             },
             aiHeaders(config, "application/json"),
         );
-        refreshRemoteUser(config);
         return images;
     } catch (error) {
-        throw normalizeAiError(error, "请求失败");
+        throw normalizeAiError(error, "璇锋眰澶辫触");
+    } finally {
+        refreshRemoteUser(config);
     }
 }
 
@@ -262,10 +269,11 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
 
     try {
         const images = await requestImageJob("edits", formData, aiHeaders(config));
-        refreshRemoteUser(config);
         return images;
     } catch (error) {
-        throw normalizeAiError(error, "请求失败");
+        throw normalizeAiError(error, "璇锋眰澶辫触");
+    } finally {
+        refreshRemoteUser(config);
     }
 }
 
@@ -293,11 +301,12 @@ async function pollImageJob(jobId: string) {
             });
             if (response.status < 200 || response.status >= 300 || response.data?.code !== 0) {
                 const message = response.data?.msg || "Image job status request failed";
-                throw new Error(message);
+                if (response.status === 404) throw new Error(message);
+                continue;
             }
 
             const job = response.data.data;
-            if (!job) throw new Error("Image job status request failed");
+            if (!job) continue;
             if (job.status === "succeeded") return parseImagePayload(job.data || {});
             if (job.status === "failed") throw new Error(job.error || "Image generation failed");
         } catch (error) {
@@ -347,14 +356,14 @@ export async function requestImageQuestion(config: AiConfig, messages: ChatCompl
             },
         );
         if (typeof response.data === "object" && response.data && "code" in response.data && (response.data as { code?: number; msg?: string }).code !== 0) {
-            throw new Error((response.data as { msg?: string }).msg || "请求失败");
+            throw new Error((response.data as { msg?: string }).msg || "璇锋眰澶辫触");
         }
         if (typeof response.data === "string") {
             let apiError = "";
             try {
                 const payload = JSON.parse(response.data) as { code?: number; msg?: string };
                 if (typeof payload.code === "number" && payload.code !== 0) {
-                    apiError = payload.msg || "请求失败";
+                    apiError = payload.msg || "璇锋眰澶辫触";
                 }
             } catch {
                 // ignore plain text stream content
@@ -368,13 +377,15 @@ export async function requestImageQuestion(config: AiConfig, messages: ChatCompl
             });
         }
     } catch (error) {
-        throw normalizeAiError(error, "请求失败");
+        throw normalizeAiError(error, "璇锋眰澶辫触");
+    } finally {
+        refreshRemoteUser(config);
     }
-    refreshRemoteUser(config);
-    return answer || "没有返回内容";
+    return answer || "娌℃湁杩斿洖鍐呭";
 }
 
 export async function fetchImageModels(config: AiConfig) {
+    if (config.channelMode === "remote") return config.models;
     try {
         const response = await axios.get<{ data?: Array<{ id?: string }>; error?: { message?: string } }>(buildApiUrl(config.baseUrl, "/models"), {
             headers: aiHeaders(config),
@@ -384,6 +395,8 @@ export async function fetchImageModels(config: AiConfig) {
             .filter((id): id is string => Boolean(id))
             .sort((a, b) => a.localeCompare(b));
     } catch (error) {
-        throw normalizeAiError(error, "读取模型失败");
+        throw normalizeAiError(error, "璇诲彇妯″瀷澶辫触");
     }
 }
+
+

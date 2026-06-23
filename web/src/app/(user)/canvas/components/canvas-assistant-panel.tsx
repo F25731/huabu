@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUp, History, ImageIcon, LoaderCircle, MessageSquare, PanelRightClose, Plus, RotateCcw, Settings2, Sparkles, Trash2, X } from "lucide-react";
@@ -8,7 +8,6 @@ import { motion } from "motion/react";
 import { ImageGenerationPending } from "@/components/image-generation-pending";
 import { ModelPicker } from "@/components/model-picker";
 import { useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
-import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { nanoid } from "nanoid";
 import { cn } from "@/lib/utils";
@@ -45,7 +44,6 @@ type CanvasAssistantPanelProps = {
 export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onInsertImage, onInsertText, onPasteImage, onCollapseStart, onCollapse }: CanvasAssistantPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const effectiveConfig = useEffectiveConfig();
-    const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const cleanupImages = useAssetStore((state) => state.cleanupImages);
     const clearSession = useUserStore((state) => state.clearSession);
     const updateConfig = useConfigStore((state) => state.updateConfig);
@@ -67,9 +65,9 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
     const handleAiRequestError = (error: unknown) => {
         if (error instanceof AiRequestError && error.kind === "auth") {
             Modal.error({
-                title: "Key 不存在或已失效",
-                content: "这个号池 Key 已经不存在或被禁用，请重新登录新的 Key。",
-                okText: "去登录",
+                title: "Key ???????",
+                content: "???? Key ????????????????? Key?",
+                okText: "???",
                 onOk: () => {
                     clearSession();
                     window.location.href = "/login";
@@ -79,17 +77,17 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
         }
         if (error instanceof AiRequestError && error.kind === "quota") {
             Modal.warning({
-                title: "额度没有了",
-                content: "这个 Key 的额度已经用完，请联系号池管理员加额度。加完额度后刷新页面即可继续使用。",
-                okText: "知道了",
+                title: "????",
+                content: "?? Key ????????????????????????????????????",
+                okText: "???",
             });
             return true;
         }
         if (error instanceof AiRequestError && error.kind === "upstream_auth") {
             Modal.warning({
-                title: "生成失败",
-                content: "本次生成失败，请重新生成。",
-                okText: "知道了",
+                title: "鐢熸垚澶辫触",
+                content: "?????????????",
+                okText: "???",
             });
             return true;
         }
@@ -139,7 +137,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                         sessionTimedOut = true;
                         return {
                             ...message,
-                            text: message.mode === "image" ? "生成失败，请重新生成" : "回答失败，请重新发送",
+                            text: message.mode === "image" ? "??????????" : "??????????",
                             isLoading: false,
                         };
                     });
@@ -160,7 +158,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
     const appendMessage = (sessionId: string, message: CanvasAssistantMessage) => {
         updateSession(sessionId, (session) => ({
             ...session,
-            title: session.messages.length ? session.title : message.text.slice(0, 18) || "新对话",
+            title: session.messages.length ? session.title : message.text.slice(0, 18) || "???",
             messages: [...session.messages, message],
             updatedAt: new Date().toISOString(),
         }));
@@ -223,7 +221,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
         const userMessage: CanvasAssistantMessage = { id: nanoid(), role: "user", mode: nextMode, text, references: refs };
         const assistantId = nanoid();
         appendMessage(session.id, userMessage);
-        appendMessage(session.id, { id: assistantId, role: "assistant", mode: nextMode, text: nextMode === "image" ? "正在生成图片" : "正在回答", isLoading: true, startedAt: Date.now() });
+        appendMessage(session.id, { id: assistantId, role: "assistant", mode: nextMode, text: nextMode === "image" ? "姝ｅ湪鐢熸垚鍥剧墖" : "姝ｅ湪鍥炵瓟", isLoading: true, startedAt: Date.now() });
         setPrompt("");
         setIsRunning(true);
 
@@ -235,7 +233,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                 const images = referenceImages.length ? await requestEdit(requestConfig, text, referenceImages) : await requestGeneration(requestConfig, text);
                 const storedImages = await Promise.all(images.map((image) => uploadImage(image.dataUrl)));
                 updateMessage(session.id, assistantId, {
-                    text: `生成了 ${storedImages.length} 张图片`,
+                    text: "??? " + storedImages.length + " ???",
                     images: storedImages.map((image, index) => ({ id: images[index].id, dataUrl: image.url, storageKey: image.storageKey, prompt: text })),
                     isLoading: false,
                 });
@@ -248,7 +246,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
             updateMessage(session.id, assistantId, { text: answer, isLoading: false });
         } catch (error) {
             handleAiRequestError(error);
-            updateMessage(session.id, assistantId, { text: error instanceof Error ? error.message : nextMode === "image" ? "生成失败，请重新生成" : "回答失败，请重新发送", isLoading: false });
+            updateMessage(session.id, assistantId, { text: error instanceof Error ? error.message : nextMode === "image" ? "??????????" : "??????????", isLoading: false });
         } finally {
             setIsRunning(false);
         }
@@ -304,19 +302,19 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                 transition={{ duration: resizing ? 0 : PANEL_MOTION_SECONDS, ease: [0.22, 1, 0.36, 1] }}
                 style={{ width, background: theme.node.panel, borderColor: theme.node.stroke, color: theme.node.text }}
             >
-                <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onMouseDown={startResize} aria-label="调整右侧面板宽度" />
+                <button type="button" className="absolute inset-y-0 left-0 z-40 w-4 -translate-x-1/2 cursor-col-resize" onMouseDown={startResize} aria-label="璋冩暣鍙充晶闈㈡澘瀹藉害" />
                 <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: theme.node.stroke }}>
                     <div className="flex items-center gap-2 text-sm font-medium">
                         <Sparkles className="size-4" />
-                        {view === "history" ? "历史记录" : "画布助手(未开发)"}
+                        {view === "history" ? "鍘嗗彶璁板綍" : "鐢诲竷鍔╂墜(鏈紑鍙?"}
                     </div>
                     <div className="flex items-center gap-1">
                         {view === "history" ? (
                             <>
-                                <Tooltip title="删除选中">
+                                <Tooltip title="鍒犻櫎閫変腑">
                                     <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={iconButtonStyle} icon={<Trash2 className="size-4" />} disabled={!checkedChatIds.length} onClick={() => setDeleteChatIds(checkedChatIds)} />
                                 </Tooltip>
-                                <Tooltip title="删除全部">
+                                <Tooltip title="鍒犻櫎鍏ㄩ儴">
                                     <Button
                                         type="text"
                                         shape="circle"
@@ -329,10 +327,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                                 </Tooltip>
                             </>
                         ) : null}
-                        <Tooltip title={view === "history" ? "返回对话" : "历史记录"}>
+                        <Tooltip title={view === "history" ? "杩斿洖瀵硅瘽" : "鍘嗗彶璁板綍"}>
                             <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={iconButtonStyle} icon={<History className="size-4" />} onClick={() => setView(view === "history" ? "chat" : "history")} />
                         </Tooltip>
-                        <Tooltip title="新对话">
+                        <Tooltip title="???">
                             <Button
                                 type="text"
                                 shape="circle"
@@ -346,10 +344,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                                 }}
                             />
                         </Tooltip>
-                        <Tooltip title="配置">
+                        <Tooltip title="閰嶇疆">
                             <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={iconButtonStyle} icon={<Settings2 className="size-4" />} onClick={() => openConfigDialog(false)} />
                         </Tooltip>
-                        <Tooltip title="收起对话">
+                        <Tooltip title="鏀惰捣瀵硅瘽">
                             <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={iconButtonStyle} icon={<PanelRightClose className="size-4" />} onClick={collapse} />
                         </Tooltip>
                     </div>
@@ -373,10 +371,10 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                     ) : (
                         <div className="flex h-full flex-col items-center justify-center px-1 text-center">
                             <div className="relative font-serif text-4xl font-bold italic tracking-normal" style={{ color: theme.node.text }}>
-                                <span>知梦画布</span>
-                                <DiaTextReveal className="absolute inset-0" colors={["#A97CF8", "#F38CB8", "#FDCC92"]} textColor="transparent" duration={1.8} startOnView={false} text="知梦画布" />
+                                <span>鐭ユⅵ鐢诲竷</span>
+                                <DiaTextReveal className="absolute inset-0" colors={["#A97CF8", "#F38CB8", "#FDCC92"]} textColor="transparent" duration={1.8} startOnView={false} text="鐭ユⅵ鐢诲竷" />
                             </div>
-                            <div className="mt-3 font-serif text-base italic tracking-wide opacity-60">文生图与参考图创作</div>
+                            <div className="mt-3 font-serif text-base italic tracking-wide opacity-60">鏂囩敓鍥句笌鍙傝€冨浘鍒涗綔</div>
                         </div>
                     )}
                 </div>
@@ -398,18 +396,17 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                             if (selectedNodeIds.has(id)) onSelectNodeIds(new Set(Array.from(selectedNodeIds).filter((nodeId) => nodeId !== id)));
                         }}
                         onPasteImage={onPasteImage}
-                        modelCosts={modelCosts}
                     />
                 ) : null}
 
                 <Modal
-                    title="删除对话记录？"
+                    title="???????"
                     open={deleteChatIds.length > 0}
                     centered
                     onCancel={() => setDeleteChatIds([])}
                     footer={
                         <>
-                            <Button onClick={() => setDeleteChatIds([])}>取消</Button>
+                            <Button onClick={() => setDeleteChatIds([])}>鍙栨秷</Button>
                             <Button
                                 danger
                                 type="primary"
@@ -418,12 +415,12 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, sessions, activeS
                                     setDeleteChatIds([]);
                                 }}
                             >
-                                删除
+                                鍒犻櫎
                             </Button>
                         </>
                     }
                 >
-                    <p className="text-sm opacity-60">将删除 {deleteChatIds.length} 条对话记录，此操作不可撤销。</p>
+                    <p className="text-sm opacity-60">??? {deleteChatIds.length} ??????????????</p>
                 </Modal>
             </motion.aside>
         </motion.div>
@@ -443,7 +440,6 @@ function AssistantComposer({
     onMissingConfig,
     onRemoveReference,
     onPasteImage,
-    modelCosts,
 }: {
     mode: AssistantMode;
     prompt: string;
@@ -457,11 +453,8 @@ function AssistantComposer({
     onMissingConfig: () => void;
     onRemoveReference: (id: string) => void;
     onPasteImage: (file: File) => void;
-    modelCosts?: { model: string; credits: number }[];
 }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const activeModel = mode === "image" ? config.imageModel || config.model : config.textModel || config.model;
-    const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: activeModel, count: mode === "image" ? config.count : 1 });
 
     return (
         <div className="px-2 pb-2" onWheelCapture={(event) => event.stopPropagation()}>
@@ -489,7 +482,7 @@ function AssistantComposer({
                     }}
                     className="thin-scrollbar h-20 w-full resize-none border-0 bg-transparent px-1 py-1 text-sm leading-5 outline-none placeholder:text-stone-400"
                     style={{ color: theme.node.text }}
-                    placeholder={mode === "image" ? "描述你想生成或修改的图片" : "输入你想问的问题"}
+                    placeholder={mode === "image" ? "鎻忚堪浣犳兂鐢熸垚鎴栦慨鏀圭殑鍥剧墖" : "杈撳叆浣犳兂闂殑闂"}
                 />
                 <div className="mt-2 flex items-center justify-between gap-2">
                     <div className="canvas-composer-tools flex min-w-0 flex-1 items-center gap-1">
@@ -509,13 +502,9 @@ function AssistantComposer({
                         className="!h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                         disabled={isRunning || !prompt.trim()}
                         onClick={() => void onSubmit()}
-                        aria-label="发送"
+                        aria-label="??"
                     >
                         <span className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center gap-1 text-xs font-medium tabular-nums">
-                                <CreditSymbol />
-                                {credits.toLocaleString()}
-                            </span>
                             {isRunning ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
                         </span>
                     </Button>
@@ -529,8 +518,8 @@ function AssistantModeSwitch({ mode, theme, onChange }: { mode: AssistantMode; t
     return (
         <div className="canvas-composer-mode-switch flex h-8 shrink-0 items-center rounded-full p-0.5" style={{ background: theme.node.fill }}>
             {[
-                { value: "ask" as const, title: "对话", icon: <MessageSquare className="size-4" /> },
-                { value: "image" as const, title: "生图", icon: <ImageIcon className="size-4" /> },
+                { value: "ask" as const, title: "瀵硅瘽", icon: <MessageSquare className="size-4" /> },
+                { value: "image" as const, title: "鐢熷浘", icon: <ImageIcon className="size-4" /> },
             ].map((item) => (
                 <Tooltip key={item.value} title={item.title}>
                     <button
@@ -558,7 +547,7 @@ function SettingTitle({ children, color }: { children: string; color: string }) 
 }
 
 function qualityLabel(value: string) {
-    return ({ auto: "自动", high: "高", medium: "中", low: "低" } as Record<string, string>)[value] || value;
+    return ({ auto: "??", high: "?", medium: "?", low: "?" } as Record<string, string>)[value] || value;
 }
 
 function AssistantMessages({
@@ -585,17 +574,17 @@ function AssistantMessages({
                         {message.role === "assistant" ? (
                             <div className="mb-1 flex items-center gap-1.5 text-xs opacity-60">
                                 <MessageSquare className="size-3.5" />
-                                回答
+                                鍥炵瓟
                             </div>
                         ) : null}
                         {message.text}
                     </div>
                     {message.references?.length ? <MessageReferences message={message} /> : null}
-                    {message.isLoading ? <ImageGenerationPending compact label={message.mode === "image" ? "正在生成图片" : "正在回答"} className="w-[250px] rounded-2xl border" /> : null}
+                    {message.isLoading ? <ImageGenerationPending compact label={message.mode === "image" ? "姝ｅ湪鐢熸垚鍥剧墖" : "姝ｅ湪鍥炵瓟"} className="w-[250px] rounded-2xl border" /> : null}
                     {message.role === "assistant" && !message.isLoading ? (
                         <div className="flex gap-1">
-                            <Button shape="circle" size="small" style={{ borderColor: theme.node.stroke }} icon={<RotateCcw className="size-3.5" />} onClick={() => onRetry(message)} title="重试" />
-                            {!message.images?.length ? <Button shape="circle" size="small" style={{ borderColor: theme.node.stroke }} icon={<Plus className="size-3.5" />} onClick={() => onInsertText(message.text)} title="插入画布" /> : null}
+                            <Button shape="circle" size="small" style={{ borderColor: theme.node.stroke }} icon={<RotateCcw className="size-3.5" />} onClick={() => onRetry(message)} title="閲嶈瘯" />
+                            {!message.images?.length ? <Button shape="circle" size="small" style={{ borderColor: theme.node.stroke }} icon={<Plus className="size-3.5" />} onClick={() => onInsertText(message.text)} title="鎻掑叆鐢诲竷" /> : null}
                         </div>
                     ) : null}
                     {message.images?.map((image) => (
@@ -604,10 +593,10 @@ function AssistantMessages({
                             <Button
                                 type="text"
                                 className="!h-8 !w-full !rounded-none"
-                                style={{ borderTop: `1px solid ${theme.node.stroke}`, color: theme.node.text }}
+                                style={{ borderTop: "1px solid " + theme.node.stroke, color: theme.node.text }}
                                 icon={<Plus className="size-3.5" />}
                                 onClick={() => onInsertImage(image)}
-                                title="插入画布"
+                                title="鎻掑叆鐢诲竷"
                             />
                         </div>
                     ))}
@@ -641,9 +630,9 @@ function AssistantHistory({
                     <input type="checkbox" className="size-4 accent-stone-950" checked={checkedIds.includes(session.id)} onChange={(event) => onToggleChecked(session.id, event.target.checked)} />
                     <button type="button" className="min-w-0 flex-1 text-left text-sm" onClick={() => onOpen(session.id)}>
                         <span className="block truncate">{session.title}</span>
-                        <span className="text-xs opacity-50">{session.messages.length} 条消息</span>
+                        <span className="text-xs opacity-50">{session.messages.length} ???</span>
                     </button>
-                    <Button type="text" shape="circle" size="small" className="opacity-0 transition group-hover:opacity-100" icon={<Trash2 className="size-3.5" />} onClick={() => onDelete(session.id)} title="删除" />
+                    <Button type="text" shape="circle" size="small" className="opacity-0 transition group-hover:opacity-100" icon={<Trash2 className="size-3.5" />} onClick={() => onDelete(session.id)} title="鍒犻櫎" />
                 </div>
             ))}
         </div>
@@ -662,7 +651,7 @@ function MessageReferences({ message }: { message: CanvasAssistantMessage }) {
 
 function AssistantReferenceChip({ item, onRemove }: { item: CanvasAssistantReference; onRemove?: () => void }) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
-    const text = (item.text || item.title).replace(/\s+/g, " ").trim().slice(0, 1) || "文";
+    const text = (item.text || item.title).replace(/\s+/g, " ").trim().slice(0, 1) || "?";
     return (
         <div className="group/chip relative inline-flex h-8 max-w-[150px] shrink-0 items-center gap-1.5 rounded-lg text-sm" style={{ color: theme.node.text }}>
             {item.dataUrl ? (
@@ -678,7 +667,7 @@ function AssistantReferenceChip({ item, onRemove }: { item: CanvasAssistantRefer
                     className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border opacity-0 shadow-sm transition group-hover/chip:opacity-100"
                     style={{ background: theme.toolbar.panel, borderColor: theme.node.stroke }}
                     onClick={onRemove}
-                    aria-label="移除引用"
+                    aria-label="绉婚櫎寮曠敤"
                 >
                     <X className="size-3" />
                 </button>
@@ -726,5 +715,7 @@ async function buildChatMessages(messages: CanvasAssistantMessage[]): Promise<Ch
 
 function createSession(): CanvasAssistantSession {
     const now = new Date().toISOString();
-    return { id: nanoid(), title: "新对话", messages: [], createdAt: now, updatedAt: now };
+    return { id: nanoid(), title: "???", messages: [], createdAt: now, updatedAt: now };
 }
+
+

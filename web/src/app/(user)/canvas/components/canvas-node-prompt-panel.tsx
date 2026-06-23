@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { ArrowUp, LoaderCircle } from "lucide-react";
@@ -6,7 +6,6 @@ import { Button } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
 import { FIXED_IMAGE_MODEL, defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
-import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
@@ -26,7 +25,6 @@ type CanvasNodePromptPanelProps = {
 
 export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfigChange, onGenerate, onImageSettingsOpenChange }: CanvasNodePromptPanelProps) {
     const globalConfig = useEffectiveConfig();
-    const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mode = defaultMode(node.type);
@@ -36,7 +34,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
     const isNodeGenerating = node.metadata?.status === "loading";
     const isDisabled = isRunning || isNodeGenerating;
     const [prompt, setPrompt] = useState(getInitialPrompt(node));
-    const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: config.model, count: mode === "image" ? config.count : 1 });
 
     useEffect(() => {
         setPrompt(isNodeGenerating ? "" : getInitialPrompt(node));
@@ -66,7 +63,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 onWheel={(event) => event.stopPropagation()}
             >
                 <LoaderCircle className="size-4 animate-spin" />
-                <span>生成中，请稍候</span>
+                <span>???????</span>
             </div>
         );
     }
@@ -90,7 +87,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                 disabled={isDisabled}
                 className="thin-scrollbar h-24 w-full resize-none rounded-xl border px-3 py-2 text-sm leading-5 outline-none"
                 style={{ background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text }}
-                placeholder={isNodeGenerating ? "生成中，请稍候" : mode === "image" ? (hasImageContent ? "请输入你想要把这张图修改成什么" : "描述要生成的图片内容") : hasTextContent ? "请输入你想要将本段文本修改成什么" : "请输入你想要生成的文本内容"}
+                placeholder={isNodeGenerating ? "???????" : mode === "video" ? "??????????" : mode === "image" ? (hasImageContent ? "???????????????" : "??????????") : hasTextContent ? "????????????????" : "?????????????"}
             />
 
             <div className="mt-2 flex min-w-0 items-center justify-between gap-2">
@@ -117,13 +114,9 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
                     className="!h-10 !min-w-16 shrink-0 !rounded-full !px-3"
                     disabled={isDisabled || !prompt.trim()}
                     onClick={submit}
-                    aria-label="生成"
+                    aria-label="鐢熸垚"
                 >
                     <span className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 text-xs font-medium tabular-nums">
-                            <CreditSymbol />
-                            {credits.toLocaleString()}
-                        </span>
                         {isRunning ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
                     </span>
                 </Button>
@@ -133,7 +126,7 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
 }
 
 function defaultMode(type: CanvasNodeData["type"]): CanvasNodeGenerationMode {
-    return type === CanvasNodeType.Text ? "text" : "image";
+    return type === CanvasNodeType.Text ? "text" : type === CanvasNodeType.Video ? "video" : "image";
 }
 
 function getInitialPrompt(node: CanvasNodeData) {
@@ -146,7 +139,12 @@ function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: Can
         ...globalConfig,
         model: FIXED_IMAGE_MODEL,
         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
+        imageTier: node?.metadata?.imageTier || globalConfig.imageTier || defaultConfig.imageTier,
         size: node.metadata?.size || globalConfig.size || defaultConfig.size,
+        videoSeconds: node.metadata?.seconds || globalConfig.videoSeconds || defaultConfig.videoSeconds,
+        vquality: node.metadata?.vquality || globalConfig.vquality || defaultConfig.vquality,
         count: String(node.metadata?.count || globalConfig.count || defaultConfig.count),
     };
 }
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { CSSProperties } from "react";
 import { useState } from "react";
@@ -6,9 +6,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Edit3, Eye, Image as ImageIc
 import { App, Button, Empty, Input, Modal } from "antd";
 
 import { ModelPicker } from "@/components/model-picker";
-import { MAX_IMAGE_GENERATION_COUNT } from "@/components/image-settings-panel";
 import { FIXED_IMAGE_MODEL, defaultConfig, useConfigStore, useEffectiveConfig, type AiConfig } from "@/stores/use-config-store";
-import { CreditSymbol, requestCreditCost } from "@/constant/credits";
 import { canvasThemes } from "@/lib/canvas-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { CanvasImageSettingsPopover } from "./canvas-image-settings-popover";
@@ -31,13 +29,10 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
     const [editingTextId, setEditingTextId] = useState<string | null>(null);
     const [editingText, setEditingText] = useState("");
     const globalConfig = useEffectiveConfig();
-    const modelCosts = useConfigStore((state) => state.publicSettings?.modelChannel.modelCosts);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const mode = "image";
     const config = buildNodeConfig(globalConfig, node, mode);
-    const count = Math.max(1, Math.min(MAX_IMAGE_GENERATION_COUNT, Math.floor(Math.abs(Number(config.count)) || 1)));
-    const credits = requestCreditCost({ channelMode: config.channelMode, modelCosts, model: config.model, count: mode === "image" ? count : 1 });
     const chipStyle = { background: theme.node.fill, borderColor: theme.node.stroke, color: theme.node.text };
     const textInputs = inputs.filter((input) => input.type === "text");
     const imageInputs = inputs.filter((input) => input.type === "image");
@@ -55,7 +50,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
         const next = [...inputs];
         [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
         onConfigChange(node.id, { inputOrder: next.map((input) => input.nodeId) });
-        message.success("已调整输入顺序");
+        message.success("???????");
     };
     const startTextEdit = (input: NodeGenerationInput) => {
         setEditingTextId(input.nodeId);
@@ -66,25 +61,25 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
         onTextInputChange(editingTextId, editingText);
         setEditingText("");
         setEditingTextId(null);
-        message.success("已保存文本提示词");
+        message.success("宸蹭繚瀛樻枃鏈彁绀鸿瘝");
     };
 
     return (
         <div className="flex h-full w-full cursor-move flex-col px-3 pb-3 pt-7 text-sm" style={{ color: theme.node.text }} onWheel={(event) => event.stopPropagation()}>
             <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="shrink-0 text-sm font-semibold">生成配置</div>
+                <div className="shrink-0 text-sm font-semibold">鐢熸垚閰嶇疆</div>
                 <div className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" style={chipStyle}>
                     <ImageIcon className="size-3.5" />
-                    生图
+                    鐢熷浘
                 </div>
             </div>
 
             <div className="mb-2 flex flex-wrap gap-1.5" onMouseDown={(event) => event.stopPropagation()}>
-                <InputChip label="提示词" value={`${promptCount} 个`} style={chipStyle} />
-                <InputChip label="参考图" value={`${inputSummary.imageCount} 张`} style={chipStyle} />
+                <InputChip label="???" value={`${promptCount} ?`} style={chipStyle} />
+                <InputChip label="???" value={`${inputSummary.imageCount} ?`} style={chipStyle} />
                 <button type="button" className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border px-2 text-[11px]" style={chipStyle} onClick={() => setPreviewOpen(true)}>
                     <Eye className="size-3.5" />
-                    预览
+                    棰勮
                 </button>
             </div>
 
@@ -93,7 +88,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
                     className="thin-scrollbar !h-[76px] !resize-none !rounded-lg !text-xs !leading-5"
                     value={prompt}
                     disabled={isRunning}
-                    placeholder={inputSummary.imageCount ? "输入统一改图要求，比如：把这几张图做成4张主图，1张宣传图" : "输入生成要求"}
+                    placeholder={inputSummary.imageCount ? "杈撳叆缁熶竴鏀瑰浘瑕佹眰锛屾瘮濡傦細鎶婅繖鍑犲紶鍥惧仛鎴?寮犱富鍥撅紝1寮犲浼犲浘" : "杈撳叆鐢熸垚瑕佹眰"}
                     onChange={(event) => onConfigChange(node.id, { prompt: event.target.value })}
                     onPressEnter={(event) => {
                         if (event.shiftKey || event.ctrlKey || event.metaKey) return;
@@ -118,16 +113,12 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
                 onClick={() => onGenerate(node.id)}
             >
                 <span className="inline-flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1">
-                        <CreditSymbol />
-                        {credits.toLocaleString()}
-                    </span>
                     {isRunning ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}
-                    <span>开始生成</span>
+                    <span>????</span>
                 </span>
             </Button>
             <Modal
-                title="输入预览"
+                title="杈撳叆棰勮"
                 open={previewOpen}
                 onCancel={() => setPreviewOpen(false)}
                 footer={null}
@@ -146,7 +137,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
                     {inputs.length ? (
                         <div className="flex h-[min(66vh,580px)] flex-col gap-3 overflow-hidden">
                             <div className="shrink-0">
-                                <PreviewSection title="图片提示词" count={imageInputs.length} empty="暂无图片提示词">
+                                <PreviewSection title="?????" count={imageInputs.length} empty="???????">
                                     <div className="thin-scrollbar flex gap-1.5 overflow-x-auto pb-1">
                                         {imageInputs.map((input, index) => (
                                             <ImageSortCard key={input.nodeId} input={input} imageIndex={index} imageTotal={imageInputs.length} inputs={inputs} theme={theme} onMove={moveInput} />
@@ -156,7 +147,7 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
                             </div>
                             <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-hidden">
                                 <div className="thin-scrollbar min-h-0 overflow-y-auto pr-1.5">
-                                    <PreviewSection title="文本提示词" count={textInputs.length} empty="暂无文本提示词">
+                                    <PreviewSection title="?????" count={textInputs.length} empty="???????">
                                         <div className="space-y-1.5">
                                             {textInputs.map((input, index) => (
                                                 <TextSortCard key={input.nodeId} input={input} textIndex={index} textTotal={textInputs.length} inputs={inputs} theme={theme} onMove={moveInput} onEdit={startTextEdit} />
@@ -168,32 +159,31 @@ export function CanvasConfigNodePanel({ node, isRunning, inputSummary, inputs, o
                                     {editingTextId ? (
                                         <>
                                             <div className="mb-2 flex items-center justify-between">
-                                                <div className="text-sm font-semibold">编辑文本提示词</div>
+                                                <div className="text-sm font-semibold">???????</div>
                                                 <Button size="small" type="text" onClick={() => setEditingTextId(null)}>
-                                                    收起
+                                                    鏀惰捣
                                                 </Button>
                                             </div>
                                             <Input.TextArea className="thin-scrollbar !flex-1 !resize-none !text-xs !leading-5" value={editingText} onChange={(event) => setEditingText(event.target.value)} />
                                             <div className="mt-2 flex justify-end gap-2">
                                                 <Button size="small" onClick={() => setEditingTextId(null)}>
-                                                    取消
+                                                    鍙栨秷
                                                 </Button>
                                                 <Button size="small" type="primary" onClick={saveTextEdit}>
-                                                    保存
+                                                    淇濆瓨
                                                 </Button>
                                             </div>
                                         </>
                                     ) : (
                                         <div className="flex h-full flex-col justify-center rounded-xl border border-dashed px-4 text-center text-xs leading-5 opacity-45" style={{ borderColor: theme.node.stroke }}>
                                             <Edit3 className="mx-auto mb-2 size-5" />
-                                            选择一条文本后在这里编辑
-                                        </div>
+                                            閫夋嫨涓€鏉℃枃鏈悗鍦ㄨ繖閲岀紪杈?                                        </div>
                                     )}
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无提示词或参考图" className="py-8" />
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="鏆傛棤鎻愮ず璇嶆垨鍙傝€冨浘" className="py-8" />
                     )}
                 </div>
             </Modal>
@@ -206,7 +196,7 @@ function PreviewSection({ title, count, empty, children }: { title: string; coun
         <section>
             <div className="sticky top-0 z-10 mb-1 flex items-center justify-between px-0.5 py-0.5 backdrop-blur-sm">
                 <div className="text-xs font-semibold">{title}</div>
-                <div className="text-[11px] opacity-50">{count} 个</div>
+                <div className="text-[11px] opacity-50">{count} ?</div>
             </div>
             {count ? children : <div className="rounded-xl border border-dashed px-3 py-5 text-center text-xs opacity-45">{empty}</div>}
         </section>
@@ -233,7 +223,7 @@ function TextSortCard({
     return (
         <div className="grid grid-cols-[minmax(0,1fr)_72px] items-center gap-1.5 rounded-md border px-2 py-1" style={{ background: `${theme.node.fill}99`, borderColor: theme.node.stroke }}>
             <div className="min-w-0">
-                <div className="truncate text-[10px] font-medium opacity-50">文本 {textIndex + 1}</div>
+                <div className="truncate text-[10px] font-medium opacity-50">鏂囨湰 {textIndex + 1}</div>
                 <div className="line-clamp-1 whitespace-pre-wrap break-words text-[11px] leading-4 opacity-80">{input.text}</div>
             </div>
             <div className="flex justify-end gap-1">
@@ -299,12 +289,18 @@ function InputChip({ label, value, style }: { label: string; value: string; styl
 }
 
 function buildNodeConfig(globalConfig: AiConfig, node: CanvasNodeData, mode: CanvasGenerationMode): AiConfig {
-    const defaultModel = mode === "image" ? globalConfig.imageModel : globalConfig.textModel;
+    const defaultModel = mode === "image" ? globalConfig.imageModel : mode === "video" ? globalConfig.videoModel : globalConfig.textModel;
     return {
         ...globalConfig,
         model: node.metadata?.model || defaultModel || globalConfig.model || defaultConfig.model,
         quality: node.metadata?.quality || globalConfig.quality || defaultConfig.quality,
+        imageTier: node?.metadata?.imageTier || globalConfig.imageTier || defaultConfig.imageTier,
         size: node.metadata?.size || globalConfig.size || defaultConfig.size,
+        videoSeconds: node.metadata?.seconds || globalConfig.videoSeconds || defaultConfig.videoSeconds,
+        vquality: node.metadata?.vquality || globalConfig.vquality || defaultConfig.vquality,
         count: String(node.metadata?.count || globalConfig.count || defaultConfig.count),
     };
 }
+
+
+

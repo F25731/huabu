@@ -1,15 +1,16 @@
-"use client";
+﻿"use client";
 
 import { type ReactNode } from "react";
 import { ConfigProvider } from "antd";
 
 import { type CanvasTheme } from "@/lib/canvas-theme";
 import type { AiConfig } from "@/stores/use-config-store";
+import { IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, type ImageKeyTier } from "@/types/api-keys";
 
 export const MAX_IMAGE_GENERATION_COUNT = 8;
 
 const aspectOptions = [
-    { value: "auto", label: "未指定", description: "由模型自动决定", width: 0, height: 0, icon: "auto" },
+    { value: "auto", label: "未指定", description: "模型自动决定", width: 0, height: 0, icon: "auto" },
     { value: "1:1", label: "1:1", description: "正方形", width: 1024, height: 1024, icon: "square" },
     { value: "16:9", label: "16:9", description: "横版", width: 1792, height: 1024, icon: "landscape" },
     { value: "4:3", label: "4:3", description: "横版", width: 1344, height: 1024, icon: "landscape" },
@@ -19,7 +20,7 @@ const aspectOptions = [
 
 type ImageSettingsPanelProps = {
     config: AiConfig;
-    onConfigChange: (key: "quality" | "size" | "count", value: string) => void;
+    onConfigChange: (key: "quality" | "size" | "count" | "imageTier", value: string) => void;
     theme: CanvasTheme;
     showTitle?: boolean;
     className?: string;
@@ -33,6 +34,7 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
     const count = Math.max(1, Math.min(normalizedMaxCount, Math.floor(Math.abs(Number(config.count)) || 1)));
     const activeSize = config.size || "auto";
     const selectedAspect = aspectOptions.find((item) => item.value === activeSize);
+    const activeTier = config.imageTier || "1k";
     const selectAspect = (value: string) => {
         const option = aspectOptions.find((item) => item.value === value);
         onConfigChange("size", option?.value || "auto");
@@ -46,6 +48,16 @@ export function ImageSettingsPanel({ config, onConfigChange, theme, showTitle = 
         <ImageSettingsTheme theme={theme}>
             <div className={className} style={{ color: theme.node.text }} onMouseDown={(event) => event.stopPropagation()}>
                 {showTitle ? <div className="text-lg font-semibold">图像设置</div> : null}
+                <div className="space-y-2.5">
+                    <SettingTitle color={theme.node.muted}>生图档位</SettingTitle>
+                    <div className="grid grid-cols-3 gap-2.5">
+                        {IMAGE_KEY_TIERS.map((tier) => (
+                            <OptionPill key={tier} selected={activeTier === tier} theme={theme} onClick={() => onConfigChange("imageTier", tier)}>
+                                {IMAGE_KEY_TIER_LABELS[tier]}
+                            </OptionPill>
+                        ))}
+                    </div>
+                </div>
                 <div className="space-y-2.5">
                     <SettingTitle color={theme.node.muted}>宽高比</SettingTitle>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -102,6 +114,10 @@ export function imageQualityLabel(value: string) {
 
 export function imageSizeLabel(size: string) {
     return aspectOptions.find((item) => item.value === size)?.label || size || "未指定";
+}
+
+export function imageTierLabel(tier: string | undefined) {
+    return IMAGE_KEY_TIER_LABELS[(tier || "1k") as ImageKeyTier] || "1k";
 }
 
 function OptionPill({ selected, theme, onClick, children }: { selected: boolean; theme: CanvasTheme; onClick: () => void; children: ReactNode }) {
