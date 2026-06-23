@@ -9,6 +9,8 @@ import { firstAvailableImageKey, normalizeImageApiKeys, normalizeImageKeyTier, t
 
 type AuthMode = "pool" | "admin";
 
+let balanceRefreshInFlightKey = "";
+
 type UserStore = {
     token: string;
     apiKeys: ImageApiKeys;
@@ -105,6 +107,9 @@ export const useUserStore = create<UserStore>()(
                     set({ balanceStatus: "unknown", user: get().user ? { ...get().user!, balanceStatus: "unknown" } : null });
                     return "unknown";
                 }
+                const refreshKey = `${selected.tier}:${selected.apiKey}`;
+                if (balanceRefreshInFlightKey === refreshKey) return get().balanceStatus;
+                balanceRefreshInFlightKey = refreshKey;
                 set({ balanceStatus: "checking", user: get().user ? { ...get().user!, balanceStatus: "checking", balanceTier: selected.tier } : null });
                 try {
                     const status = await fetchApiKeyStatus(selected.apiKey, selected.tier);
@@ -127,6 +132,8 @@ export const useUserStore = create<UserStore>()(
                 } catch {
                     set({ balanceStatus: "unavailable", user: get().user ? { ...get().user!, balanceStatus: "unavailable", balanceTier: selected.tier } : null });
                     return "unavailable";
+                } finally {
+                    if (balanceRefreshInFlightKey === refreshKey) balanceRefreshInFlightKey = "";
                 }
             },
             login: async (payload) => {

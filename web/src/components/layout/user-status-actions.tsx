@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, type CSSProperties, type RefObject } from "react";
+import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
 import { Avatar, Dropdown, Tooltip } from "antd";
 import { Keyboard, LogOut, Settings2 } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
@@ -37,11 +37,18 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const userName = user?.displayName || user?.username || "";
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
+    const balanceRefreshKeyRef = useRef("");
     const naturalIconClass = "inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
     useEffect(() => {
-        if (isLoggedIn) void refreshBalanceStatus(imageTier);
+        if (!isLoggedIn) {
+            balanceRefreshKeyRef.current = "";
+            return;
+        }
+        if (balanceRefreshKeyRef.current === imageTier) return;
+        balanceRefreshKeyRef.current = imageTier;
+        void refreshBalanceStatus(imageTier);
     }, [imageTier, isLoggedIn, refreshBalanceStatus]);
 
     const menuItems: ItemType[] = [
