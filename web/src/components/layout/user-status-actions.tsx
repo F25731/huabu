@@ -30,8 +30,6 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const balanceStatus = useUserStore((state) => state.balanceStatus);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
-    const imageTier = useConfigStore((state) => state.config.imageTier);
-    const refreshBalanceStatus = useUserStore((state) => state.refreshBalanceStatus);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
     const avatarUrl = user?.avatarUrl?.trim();
@@ -56,11 +54,11 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {variant === "canvas" && user ? (
-                <Tooltip title={"\u70b9\u51fb\u5237\u65b0\u7528\u6237\u4f59\u989d"} placement="bottom">
-                    <button type="button" className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 px-1.5 text-xs font-medium opacity-80 transition hover:opacity-100" style={{ color: canvasTheme.node.text }} onClick={() => void refreshBalanceStatus(imageTier)}>
+                <Tooltip title="用户余额" placement="bottom">
+                    <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80" style={{ color: canvasTheme.node.text }}>
                         <BalanceLight status={balanceStatus || user.balanceStatus || "unknown"} />
-                        <span>{"\u7528\u6237\u4f59\u989d"}</span>
-                    </button>
+                        <span>用户余额</span>
+                    </div>
                 </Tooltip>
             ) : null}
             {!user && onOpenShortcuts ? (
@@ -98,4 +96,3 @@ function BalanceLight({ status }: { status: BalanceStatus }) {
     const color = status === "available" ? "#22c55e" : status === "unavailable" ? "#ef4444" : status === "checking" ? "#f59e0b" : "#9ca3af";
     return <span className="inline-block size-2.5 shrink-0 rounded-full shadow-[0_0_0_2px_rgba(255,255,255,.35)]" style={{ background: color }} />;
 }
-

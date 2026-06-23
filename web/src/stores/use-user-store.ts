@@ -3,13 +3,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { AUTH_TOKEN_KEY, adminLogin, fetchApiKeyStatus, fetchCanvasCurrentUser, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
+import { AUTH_TOKEN_KEY, adminLogin, fetchCanvasCurrentUser, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
-import { firstAvailableImageKey, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier } from "@/types/api-keys";
+import { firstAvailableImageKey, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys } from "@/types/api-keys";
 
 type AuthMode = "pool" | "admin";
-
-let balanceRefreshInFlightKey = "";
 
 type UserStore = {
     token: string;
@@ -22,23 +20,21 @@ type UserStore = {
     setSession: (token: string, user: AuthUser, authMode?: AuthMode, apiKeys?: ImageApiKeys) => void;
     clearSession: () => void;
     hydrateUser: () => Promise<void>;
-    refreshBalanceStatus: (tier?: ImageKeyTier) => Promise<BalanceStatus>;
     login: (payload: AuthPayload) => Promise<AuthUser>;
     adminLogin: (payload: CanvasAuthPayload) => Promise<AuthUser>;
 };
 
-function resolveTierKey(apiKeys: ImageApiKeys, tier?: ImageKeyTier) {
-    const normalizedTier = normalizeImageKeyTier(tier);
-    const selectedKey = apiKeys[normalizedTier]?.trim();
-    if (selectedKey) return { tier: normalizedTier, apiKey: selectedKey };
+function resolveTierKey(apiKeys: ImageApiKeys) {
+    const configStore = useConfigStore.getState();
+    const selectedTier = normalizeImageKeyTier(configStore.config.imageTier);
+    const selectedKey = apiKeys[selectedTier]?.trim();
+    if (selectedKey) return { tier: selectedTier, apiKey: selectedKey };
     return firstAvailableImageKey(apiKeys);
 }
 
 function syncConfigApiKey(apiKeys: ImageApiKeys, fallbackToken: string) {
-    const configStore = useConfigStore.getState();
-    const selectedTier = normalizeImageKeyTier(configStore.config.imageTier);
-    const selected = resolveTierKey(apiKeys, selectedTier);
-    configStore.updateConfig("apiKey", selected?.apiKey || fallbackToken || "");
+    const selected = resolveTierKey(apiKeys);
+    useConfigStore.getState().updateConfig("apiKey", selected?.apiKey || fallbackToken || "");
 }
 
 function ensureSelectedTier(apiKeys: ImageApiKeys) {
@@ -47,6 +43,25 @@ function ensureSelectedTier(apiKeys: ImageApiKeys) {
     if (apiKeys[selectedTier]?.trim()) return;
     const first = firstAvailableImageKey(apiKeys);
     if (first) configStore.updateConfig("imageTier", first.tier);
+}
+
+function createStoredPoolUser(existingUser: AuthUser | null, balanceStatus: BalanceStatus): AuthUser {
+    if (existingUser) return { ...existingUser, unlimited: true, remaining: null, balanceStatus: existingUser.balanceStatus || balanceStatus || "unknown" };
+    return {
+        id: "pool",
+        username: "知梦用户",
+        displayName: "知梦用户",
+        avatarUrl: "",
+        role: "user",
+        credits: 0,
+        quota: 0,
+        used: 0,
+        unlimited: true,
+        remaining: null,
+        balanceStatus: balanceStatus || "unknown",
+        createdAt: "",
+        updatedAt: "",
+    };
 }
 
 export const useUserStore = create<UserStore>()(
@@ -89,60 +104,8 @@ export const useUserStore = create<UserStore>()(
                 }
                 ensureSelectedTier(apiKeys);
                 syncConfigApiKey(apiKeys, token);
-                const fallbackUser = get().user || {
-                    id: "pool",
-                    username: "\u77e5\u68a6\u7528\u6237",
-                    displayName: "\u77e5\u68a6\u7528\u6237",
-                    avatarUrl: "",
-                    role: "user" as const,
-                    credits: 0,
-                    quota: 0,
-                    used: 0,
-                    unlimited: false,
-                    remaining: null,
-                    balanceStatus: get().balanceStatus,
-                    createdAt: "",
-                    updatedAt: "",
-                };
-                set({ user: fallbackUser, apiKeys, balanceStatus: fallbackUser.balanceStatus || get().balanceStatus || "unknown", isReady: true, isLoading: false });
-            },
-            refreshBalanceStatus: async (tier) => {
-                const authMode = get().authMode;
-                if (authMode !== "pool") return get().balanceStatus;
-                const apiKeys = normalizeImageApiKeys(get().apiKeys);
-                const selected = resolveTierKey(apiKeys, tier || useConfigStore.getState().config.imageTier);
-                if (!selected) {
-                    set({ balanceStatus: "unknown", user: get().user ? { ...get().user!, balanceStatus: "unknown" } : null });
-                    return "unknown";
-                }
-                const refreshKey = `${selected.tier}:${selected.apiKey}`;
-                if (balanceRefreshInFlightKey === refreshKey) return get().balanceStatus;
-                balanceRefreshInFlightKey = refreshKey;
-                set({ balanceStatus: "checking", user: get().user ? { ...get().user!, balanceStatus: "checking", balanceTier: selected.tier } : null });
-                try {
-                    const status = await fetchApiKeyStatus(selected.apiKey, selected.tier);
-                    const nextStatus = status.status;
-                    set({
-                        balanceStatus: nextStatus,
-                        user: get().user
-                            ? {
-                                  ...get().user!,
-                                  displayName: status.name || get().user!.displayName,
-                                  username: status.name || get().user!.username,
-                                  unlimited: status.unlimited,
-                                  remaining: status.totalAvailable,
-                                  balanceStatus: nextStatus,
-                                  balanceTier: selected.tier,
-                              }
-                            : null,
-                    });
-                    return nextStatus;
-                } catch {
-                    set({ balanceStatus: "unavailable", user: get().user ? { ...get().user!, balanceStatus: "unavailable", balanceTier: selected.tier } : null });
-                    return "unavailable";
-                } finally {
-                    if (balanceRefreshInFlightKey === refreshKey) balanceRefreshInFlightKey = "";
-                }
+                const fallbackUser = createStoredPoolUser(get().user, get().balanceStatus);
+                set({ user: fallbackUser, apiKeys, balanceStatus: fallbackUser.balanceStatus || "unknown", isReady: true, isLoading: false });
             },
             login: async (payload) => {
                 set({ isLoading: true });
