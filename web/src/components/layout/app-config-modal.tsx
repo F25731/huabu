@@ -1,14 +1,23 @@
 ﻿"use client";
 
+import { useEffect } from "react";
 import { App, Button, Form, Input, Modal } from "antd";
 import Link from "next/link";
 
 import { ModelPicker } from "@/components/model-picker";
 import { FIXED_IMAGE_MODEL, useConfigStore } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { formatImageTokenBalance, IMAGE_KEY_TIERS, IMAGE_KEY_TIER_LABELS, type ImageApiKeys } from "@/types/api-keys";
+
+type ApiKeyFormValues = {
+    apiKey1k?: string;
+    apiKey2k?: string;
+    apiKey4k?: string;
+};
 
 export function AppConfigModal() {
     const { message } = App.useApp();
+    const [form] = Form.useForm<ApiKeyFormValues>();
     const config = useConfigStore((state) => state.config);
     const updateConfig = useConfigStore((state) => state.updateConfig);
     const isConfigOpen = useConfigStore((state) => state.isConfigOpen);
@@ -16,7 +25,50 @@ export function AppConfigModal() {
     const setConfigDialogOpen = useConfigStore((state) => state.setConfigDialogOpen);
     const clearPromptContinue = useConfigStore((state) => state.clearPromptContinue);
     const user = useUserStore((state) => state.user);
+    const apiKeys = useUserStore((state) => state.apiKeys);
+    const apiKeyUsages = useUserStore((state) => state.apiKeyUsages);
+    const login = useUserStore((state) => state.login);
+    const isLoading = useUserStore((state) => state.isLoading);
+    const refreshApiKeyUsages = useUserStore((state) => state.refreshApiKeyUsages);
     const modelConfig = { ...config, model: FIXED_IMAGE_MODEL, imageModel: FIXED_IMAGE_MODEL, textModel: FIXED_IMAGE_MODEL, models: [FIXED_IMAGE_MODEL] };
+
+    useEffect(() => {
+        if (!isConfigOpen) return;
+        form.setFieldsValue({
+            apiKey1k: apiKeys["1k"] || "",
+            apiKey2k: apiKeys["2k"] || "",
+            apiKey4k: apiKeys["4k"] || "",
+        });
+    }, [apiKeys, form, isConfigOpen]);
+
+    const saveApiKeys = async () => {
+        const values = form.getFieldsValue();
+        const nextApiKeys: ImageApiKeys = {
+            "1k": values.apiKey1k?.trim() || "",
+            "2k": values.apiKey2k?.trim() || "",
+            "4k": values.apiKey4k?.trim() || "",
+        };
+        if (!nextApiKeys["1k"] && !nextApiKeys["2k"] && !nextApiKeys["4k"]) {
+            message.warning("请至少填写一个知梦 API Key");
+            return;
+        }
+        try {
+            await login({ apiKeys: nextApiKeys });
+            message.success("API Key 已保存");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "API Key 检测失败");
+        }
+    };
+
+    const refreshBalance = async () => {
+        try {
+            await refreshApiKeyUsages();
+            message.success("余额已刷新");
+        } catch {
+            message.error("余额刷新失败");
+        }
+    };
+    const currentUsage = apiKeyUsages[config.imageTier] || apiKeyUsages[user?.balanceTier || "1k"];
 
     const finishConfig = () => {
         setConfigDialogOpen(false);
@@ -48,15 +100,39 @@ export function AppConfigModal() {
             }
         >
             <div className="pt-1">
-                <Form layout="vertical" requiredMark={false}>
+                <Form form={form} layout="vertical" requiredMark={false}>
                     <div className="mb-4 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-stone-800">
                         <div className="font-medium">当前账号</div>
-                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username} · 用户余额` : "请先登录知梦 Key"}</div>
+                        <div className="mt-1 text-xs text-stone-500">{user ? `${user.displayName || user.username} · 余额 ${formatImageTokenBalance(currentUsage)}` : "请先登录知梦 Key"}</div>
                         {!user ? (
                             <Link href="/login" className="mt-2 inline-flex text-xs font-medium text-stone-950 underline-offset-4 hover:underline dark:text-stone-100" onClick={() => setConfigDialogOpen(false)}>
                                 去登录
                             </Link>
                         ) : null}
+                    </div>
+                    <div className="mb-4 rounded-lg border border-stone-200 px-3 py-3 dark:border-stone-800">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-medium">知梦 API Key</div>
+                                <div className="mt-1 text-xs text-stone-500">保存时会通过当前站点模型接口检测 Key；余额可单独刷新。</div>
+                            </div>
+                            <Button size="small" onClick={refreshBalance} disabled={!Object.keys(apiKeys).length}>
+                                刷新余额
+                            </Button>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            {IMAGE_KEY_TIERS.map((tier) => (
+                                <div key={tier} className="min-w-0">
+                                    <Form.Item name={`apiKey${tier}` as keyof ApiKeyFormValues} label={`${IMAGE_KEY_TIER_LABELS[tier]} API Key`} className="mb-2">
+                                        <Input.Password autoComplete="off" placeholder="sk-..." />
+                                    </Form.Item>
+                                    <div className="truncate text-xs text-stone-500">余额：{formatImageTokenBalance(apiKeyUsages[tier])}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <Button className="mt-3" type="default" loading={isLoading} onClick={saveApiKeys}>
+                            保存并检测 Key
+                        </Button>
                     </div>
                     <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 dark:border-stone-800">
                         <div className="min-w-0">

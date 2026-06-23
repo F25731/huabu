@@ -12,6 +12,7 @@ import { useConfigStore } from "@/stores/use-config-store";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import type { BalanceStatus } from "@/services/api/auth";
+import { formatImageTokenBalance } from "@/types/api-keys";
 
 type UserStatusActionsProps = {
     showConfig?: boolean;
@@ -28,12 +29,15 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
     const balanceStatus = useUserStore((state) => state.balanceStatus);
+    const apiKeyUsages = useUserStore((state) => state.apiKeyUsages);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
+    const imageTier = useConfigStore((state) => state.config.imageTier);
     const canvasTheme = canvasThemes[theme];
     const userName = user?.displayName || user?.username || "";
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
+    const balanceText = formatImageTokenBalance(apiKeyUsages[user?.balanceTier || imageTier]);
     const naturalIconClass = "inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
@@ -57,7 +61,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
                 <Tooltip title="用户余额" placement="bottom">
                     <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80" style={{ color: canvasTheme.node.text }}>
                         <BalanceLight status={balanceStatus || user.balanceStatus || "unknown"} />
-                        <span>用户余额</span>
+                        <span>{balanceText}</span>
                     </div>
                 </Tooltip>
             ) : null}
