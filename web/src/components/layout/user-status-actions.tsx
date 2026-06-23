@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { type CSSProperties, type RefObject } from "react";
-import { Avatar, Dropdown, Tooltip } from "antd";
-import { Keyboard, LogOut, Settings2 } from "lucide-react";
+import { useState, type CSSProperties, type RefObject } from "react";
+import { App, Avatar, Dropdown, Tooltip } from "antd";
+import { Keyboard, LoaderCircle, LogOut, RefreshCw, Settings2 } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
 import Link from "next/link";
 
@@ -25,12 +25,15 @@ type UserStatusActionsProps = {
 };
 
 export function UserStatusActions({ showConfig = true, variant = "default", onOpenShortcuts, accountOpen, onAccountOpenChange, accountRef, getPopupContainer }: UserStatusActionsProps) {
+    const { message } = App.useApp();
+    const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
     const theme = useThemeStore((state) => state.theme);
     const setTheme = useThemeStore((state) => state.setTheme);
     const user = useUserStore((state) => state.user);
     const balanceStatus = useUserStore((state) => state.balanceStatus);
     const apiKeys = useUserStore((state) => state.apiKeys);
     const apiKeyUsages = useUserStore((state) => state.apiKeyUsages);
+    const refreshApiKeyUsages = useUserStore((state) => state.refreshApiKeyUsages);
     const logout = useUserStore((state) => state.clearSession);
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
     const canvasTheme = canvasThemes[theme];
@@ -48,6 +51,18 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
         { type: "divider" },
         { key: "logout", icon: <LogOut className="size-4" />, label: "退出登录", onClick: logout },
     ];
+    const refreshBalance = async () => {
+        if (isRefreshingBalance) return;
+        setIsRefreshingBalance(true);
+        try {
+            await refreshApiKeyUsages();
+            message.success("余额已刷新");
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : "余额刷新失败");
+        } finally {
+            setIsRefreshingBalance(false);
+        }
+    };
 
     return (
         <div className="inline-flex shrink-0 items-center gap-1.5">
@@ -58,7 +73,7 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {variant === "canvas" && user ? (
-                <Tooltip title={<BalanceTooltipContent apiKeys={apiKeys} usages={apiKeyUsages} />} placement="bottom">
+                <Tooltip title={<BalanceTooltipContent apiKeys={apiKeys} usages={apiKeyUsages} refreshing={isRefreshingBalance} onRefresh={refreshBalance} />} placement="bottom">
                     <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80" style={{ color: canvasTheme.node.text }}>
                         <BalanceLight status={effectiveBalanceStatus} />
                         <span>用户余额</span>
@@ -101,9 +116,17 @@ function BalanceLight({ status }: { status: BalanceStatus }) {
     return <span className="inline-block size-2.5 shrink-0 rounded-full shadow-[0_0_0_2px_rgba(255,255,255,.35)]" style={{ background: color }} />;
 }
 
-function BalanceTooltipContent({ apiKeys, usages }: { apiKeys: ImageApiKeys; usages: ImageTokenUsages }) {
+function BalanceTooltipContent({ apiKeys, usages, refreshing, onRefresh }: { apiKeys: ImageApiKeys; usages: ImageTokenUsages; refreshing: boolean; onRefresh: () => void }) {
+    const hasApiKeys = IMAGE_KEY_TIERS.some((tier) => apiKeys[tier]);
     return (
         <div className="w-56 space-y-3 py-1">
+            <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-stone-200">额度明细</span>
+                <button type="button" className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-md px-1.5 text-xs text-stone-200 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={!hasApiKeys || refreshing} onMouseDown={(event) => event.stopPropagation()} onClick={onRefresh}>
+                    {refreshing ? <LoaderCircle className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                    刷新额度
+                </button>
+            </div>
             {IMAGE_KEY_TIERS.map((tier) => (
                 <div key={tier} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-3 text-xs">
