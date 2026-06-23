@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { TOKEN_USAGE_REQUEST_DELAY_MS } from "@/constant/env";
+import { TOKEN_USAGE_AUTO_REFRESH_INTERVAL_MS, TOKEN_USAGE_REQUEST_DELAY_MS } from "@/constant/env";
 import { AUTH_TOKEN_KEY, adminLogin, fetchCanvasCurrentUser, fetchImageTokenUsage, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
 import { firstAvailableImageKey, isImageTokenUnlimited, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier, type ImageTokenUsage, type ImageTokenUsages } from "@/types/api-keys";
@@ -17,6 +17,7 @@ type UserStore = {
     authMode: AuthMode;
     user: AuthUser | null;
     balanceStatus: BalanceStatus;
+    apiKeyUsagesRefreshedAt: number;
     isReady: boolean;
     isLoading: boolean;
     setSession: (token: string, user: AuthUser, authMode?: AuthMode, apiKeys?: ImageApiKeys, apiKeyUsages?: ImageTokenUsages) => void;
@@ -94,17 +95,18 @@ export const useUserStore = create<UserStore>()(
             authMode: "pool",
             user: null,
             balanceStatus: "unknown",
+            apiKeyUsagesRefreshedAt: 0,
             isReady: false,
             isLoading: false,
             setSession: (token, user, authMode = "pool", apiKeys = {}, apiKeyUsages = {}) => {
                 const normalizedKeys = authMode === "pool" ? normalizeImageApiKeys({ ...apiKeys, "1k": apiKeys["1k"] || token }) : {};
                 ensureSelectedTier(normalizedKeys);
                 syncConfigApiKey(normalizedKeys, authMode === "pool" ? token : "");
-                set({ token, apiKeys: normalizedKeys, apiKeyUsages: authMode === "pool" ? apiKeyUsages : {}, user, authMode, balanceStatus: user.balanceStatus || "unknown", isReady: true });
+                set({ token, apiKeys: normalizedKeys, apiKeyUsages: authMode === "pool" ? apiKeyUsages : {}, apiKeyUsagesRefreshedAt: Object.keys(apiKeyUsages).length ? Date.now() : 0, user, authMode, balanceStatus: user.balanceStatus || "unknown", isReady: true });
             },
             clearSession: () => {
                 useConfigStore.getState().updateConfig("apiKey", "");
-                set({ token: "", apiKeys: {}, apiKeyUsages: {}, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true });
+                set({ token: "", apiKeys: {}, apiKeyUsages: {}, apiKeyUsagesRefreshedAt: 0, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true });
             },
             hydrateUser: async () => {
                 const token = get().token;
@@ -112,16 +114,16 @@ export const useUserStore = create<UserStore>()(
                 const apiKeys = normalizeImageApiKeys(get().apiKeys);
                 const apiKeyUsages = get().apiKeyUsages || {};
                 if (!token) {
-                    set({ user: null, apiKeyUsages: {}, balanceStatus: "unknown", isReady: true, isLoading: false });
+                    set({ user: null, apiKeyUsages: {}, apiKeyUsagesRefreshedAt: 0, balanceStatus: "unknown", isReady: true, isLoading: false });
                     return;
                 }
                 if (authMode === "admin") {
                     set({ isLoading: true });
                     try {
                         const user = await fetchCanvasCurrentUser(token);
-                        set({ user, apiKeys: {}, apiKeyUsages: {}, balanceStatus: "unknown", isReady: true, isLoading: false });
+                        set({ user, apiKeys: {}, apiKeyUsages: {}, apiKeyUsagesRefreshedAt: 0, balanceStatus: "unknown", isReady: true, isLoading: false });
                     } catch {
-                        set({ token: "", apiKeys: {}, apiKeyUsages: {}, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true, isLoading: false });
+                        set({ token: "", apiKeys: {}, apiKeyUsages: {}, apiKeyUsagesRefreshedAt: 0, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true, isLoading: false });
                     }
                     return;
                 }
@@ -130,11 +132,15 @@ export const useUserStore = create<UserStore>()(
                 const selected = resolveTierKey(apiKeys);
                 const usage = selected ? apiKeyUsages[selected.tier] : undefined;
                 const fallbackUser = selected ? createStoredPoolUser(get().user, get().balanceStatus || "unknown", selected.tier, usage) : get().user;
-                set({ user: fallbackUser, apiKeys, apiKeyUsages, balanceStatus: usage ? "available" : "checking", isReady: true, isLoading: false });
-                try {
-                    await get().refreshApiKeyUsages();
-                } catch {
-                    set({ balanceStatus: "unavailable" });
+                const hasAnyUsage = Object.keys(apiKeyUsages).length > 0;
+                const shouldRefresh = shouldAutoRefreshTokenUsage(get().apiKeyUsagesRefreshedAt, hasAnyUsage);
+                set({ user: fallbackUser, apiKeys, apiKeyUsages, balanceStatus: usage ? "available" : shouldRefresh ? "checking" : "unknown", isReady: true, isLoading: false });
+                if (shouldRefresh) {
+                    try {
+                        await get().refreshApiKeyUsages();
+                    } catch {
+                        set({ balanceStatus: "unavailable" });
+                    }
                 }
             },
             refreshApiKeyUsages: async (options) => {
@@ -157,6 +163,7 @@ export const useUserStore = create<UserStore>()(
                 set({
                     apiKeys,
                     apiKeyUsages: usages,
+                    apiKeyUsagesRefreshedAt: Date.now(),
                     user: selected ? currentUserWithUsage(get().user, selected.tier, usage, failedMessage ? "unavailable" : "unknown") : get().user,
                     balanceStatus: failedMessage ? "unavailable" : usage ? "available" : "unknown",
                 });
@@ -171,7 +178,7 @@ export const useUserStore = create<UserStore>()(
                     const apiKeyUsages = session.apiKeyUsages || {};
                     ensureSelectedTier(apiKeys);
                     syncConfigApiKey(apiKeys, session.token);
-                    set({ token: session.token, apiKeys, apiKeyUsages, authMode: "pool", user: session.user, balanceStatus: session.user.balanceStatus || "unknown", isReady: true, isLoading: false });
+                    set({ token: session.token, apiKeys, apiKeyUsages, apiKeyUsagesRefreshedAt: Object.keys(apiKeyUsages).length ? Date.now() : 0, authMode: "pool", user: session.user, balanceStatus: session.user.balanceStatus || "unknown", isReady: true, isLoading: false });
                     return session.user;
                 } catch (error) {
                     set({ isLoading: false });
@@ -183,7 +190,7 @@ export const useUserStore = create<UserStore>()(
                 try {
                     const session = await adminLogin(payload);
                     useConfigStore.getState().updateConfig("apiKey", "");
-                    set({ token: session.token, apiKeys: {}, apiKeyUsages: {}, authMode: "admin", user: session.user, balanceStatus: "unknown", isReady: true, isLoading: false });
+                    set({ token: session.token, apiKeys: {}, apiKeyUsages: {}, apiKeyUsagesRefreshedAt: 0, authMode: "admin", user: session.user, balanceStatus: "unknown", isReady: true, isLoading: false });
                     return session.user;
                 } catch (error) {
                     set({ isLoading: false });
@@ -193,7 +200,7 @@ export const useUserStore = create<UserStore>()(
         }),
         {
             name: AUTH_TOKEN_KEY,
-            partialize: (state) => ({ token: state.token, apiKeys: state.apiKeys, apiKeyUsages: state.apiKeyUsages, authMode: state.authMode, user: state.user, balanceStatus: state.balanceStatus }),
+            partialize: (state) => ({ token: state.token, apiKeys: state.apiKeys, apiKeyUsages: state.apiKeyUsages, apiKeyUsagesRefreshedAt: state.apiKeyUsagesRefreshedAt, authMode: state.authMode, user: state.user, balanceStatus: state.balanceStatus }),
             onRehydrateStorage: () => (state) => {
                 if (state) {
                     state.isReady = false;
@@ -201,6 +208,7 @@ export const useUserStore = create<UserStore>()(
                         state.apiKeys = state.token ? { "1k": state.token } : {};
                     }
                     if (!state.apiKeyUsages) state.apiKeyUsages = {};
+                    if (typeof state.apiKeyUsagesRefreshedAt !== "number") state.apiKeyUsagesRefreshedAt = Object.keys(state.apiKeyUsages).length ? Date.now() : 0;
                 }
             },
         },
@@ -209,4 +217,10 @@ export const useUserStore = create<UserStore>()(
 
 function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldAutoRefreshTokenUsage(refreshedAt: number, hasAnyUsage: boolean) {
+    if (TOKEN_USAGE_AUTO_REFRESH_INTERVAL_MS <= 0) return false;
+    if (!refreshedAt) return !hasAnyUsage;
+    return Date.now() - refreshedAt >= TOKEN_USAGE_AUTO_REFRESH_INTERVAL_MS;
 }
