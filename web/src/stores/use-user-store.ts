@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { AUTH_TOKEN_KEY, adminLogin, fetchApiKeyStatus, fetchCanvasCurrentUser, fetchCurrentUser, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
+import { AUTH_TOKEN_KEY, adminLogin, fetchApiKeyStatus, fetchCanvasCurrentUser, login, type AuthPayload, type AuthUser, type BalanceStatus, type CanvasAuthPayload } from "@/services/api/auth";
 import { useConfigStore } from "@/stores/use-config-store";
 import { firstAvailableImageKey, normalizeImageApiKeys, normalizeImageKeyTier, type ImageApiKeys, type ImageKeyTier } from "@/types/api-keys";
 
@@ -74,29 +74,37 @@ export const useUserStore = create<UserStore>()(
                 const authMode = get().authMode;
                 const apiKeys = normalizeImageApiKeys(get().apiKeys);
                 if (!token) {
-                    set({ user: null, balanceStatus: "unknown", isReady: true });
+                    set({ user: null, balanceStatus: "unknown", isReady: true, isLoading: false });
                     return;
                 }
-                set({ isLoading: true });
-                try {
-                    const selected = resolveTierKey(apiKeys, useConfigStore.getState().config.imageTier) || { apiKey: token, tier: undefined };
-                    const user = authMode === "admin" ? await fetchCanvasCurrentUser(token) : await fetchCurrentUser(selected.apiKey);
-                    if (user.role === "guest") {
+                if (authMode === "admin") {
+                    set({ isLoading: true });
+                    try {
+                        const user = await fetchCanvasCurrentUser(token);
+                        set({ user, apiKeys: {}, balanceStatus: "unknown", isReady: true, isLoading: false });
+                    } catch {
                         set({ token: "", apiKeys: {}, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true, isLoading: false });
-                        return;
                     }
-                    ensureSelectedTier(apiKeys);
-                    syncConfigApiKey(apiKeys, authMode === "pool" ? token : "");
-                    set({ user: { ...user, balanceTier: selected.tier }, apiKeys, balanceStatus: user.balanceStatus || "unknown", isReady: true, isLoading: false });
-                } catch {
-                    const fallbackUser = get().user;
-                    if (authMode === "pool" && fallbackUser) {
-                        syncConfigApiKey(apiKeys, token);
-                        set({ user: fallbackUser, apiKeys, balanceStatus: fallbackUser.balanceStatus || "unknown", isReady: true, isLoading: false });
-                        return;
-                    }
-                    set({ token: "", apiKeys: {}, authMode: "pool", user: null, balanceStatus: "unknown", isReady: true, isLoading: false });
+                    return;
                 }
+                ensureSelectedTier(apiKeys);
+                syncConfigApiKey(apiKeys, token);
+                const fallbackUser = get().user || {
+                    id: "pool",
+                    username: "\u77e5\u68a6\u7528\u6237",
+                    displayName: "\u77e5\u68a6\u7528\u6237",
+                    avatarUrl: "",
+                    role: "user" as const,
+                    credits: 0,
+                    quota: 0,
+                    used: 0,
+                    unlimited: false,
+                    remaining: null,
+                    balanceStatus: get().balanceStatus,
+                    createdAt: "",
+                    updatedAt: "",
+                };
+                set({ user: fallbackUser, apiKeys, balanceStatus: fallbackUser.balanceStatus || get().balanceStatus || "unknown", isReady: true, isLoading: false });
             },
             refreshBalanceStatus: async (tier) => {
                 const authMode = get().authMode;

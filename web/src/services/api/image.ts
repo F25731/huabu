@@ -213,10 +213,6 @@ function aiHeaders(config: AiConfig, contentType?: string) {
           };
 }
 
-function refreshRemoteUser(config: AiConfig) {
-    if (config.channelMode === "remote") return;
-    if (useUserStore.getState().token.trim()) void useUserStore.getState().refreshBalanceStatus(config.imageTier);
-}
 
 function withSystemMessage(config: AiConfig, messages: ChatCompletionMessage[]) {
     const systemPrompt = config.systemPrompt.trim();
@@ -243,8 +239,6 @@ export async function requestGeneration(config: AiConfig, prompt: string) {
         return images;
     } catch (error) {
         throw normalizeAiError(error, "璇锋眰澶辫触");
-    } finally {
-        refreshRemoteUser(config);
     }
 }
 
@@ -272,8 +266,6 @@ export async function requestEdit(config: AiConfig, prompt: string, references: 
         return images;
     } catch (error) {
         throw normalizeAiError(error, "璇锋眰澶辫触");
-    } finally {
-        refreshRemoteUser(config);
     }
 }
 
@@ -378,8 +370,6 @@ export async function requestImageQuestion(config: AiConfig, messages: ChatCompl
         }
     } catch (error) {
         throw normalizeAiError(error, "璇锋眰澶辫触");
-    } finally {
-        refreshRemoteUser(config);
     }
     return answer || "娌℃湁杩斿洖鍐呭";
 }

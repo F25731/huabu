@@ -111,16 +111,6 @@ export async function fetchCanvasCurrentUser(token?: string) {
     return apiGet<AuthUser>("/api/auth/me", undefined, token);
 }
 
-export async function fetchCurrentUser(token?: string) {
-    const apiKey = String(token || "").trim();
-    if (!apiKey) throw new Error("请先登录");
-    try {
-        return tokenUsageToAuthUser(await fetchApiKeyStatus(apiKey));
-    } catch (error) {
-        throw new Error(readPoolError(error));
-    }
-}
-
 export async function fetchApiKeyStatus(apiKey: string, tier?: ImageKeyTier): Promise<ApiKeyStatus> {
     const token = apiKey.trim();
     if (!token) throw new Error("请先输入 API Key");

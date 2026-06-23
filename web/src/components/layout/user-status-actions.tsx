@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
+import { type CSSProperties, type RefObject } from "react";
 import { Avatar, Dropdown, Tooltip } from "antd";
 import { Keyboard, LogOut, Settings2 } from "lucide-react";
 import type { ItemType } from "antd/es/menu/interface";
@@ -33,23 +33,12 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
     const imageTier = useConfigStore((state) => state.config.imageTier);
     const refreshBalanceStatus = useUserStore((state) => state.refreshBalanceStatus);
     const canvasTheme = canvasThemes[theme];
-    const isLoggedIn = Boolean(user);
     const userName = user?.displayName || user?.username || "";
     const avatarUrl = user?.avatarUrl?.trim();
     const avatarText = (userName.trim()[0] || "U").toUpperCase();
-    const balanceRefreshKeyRef = useRef("");
     const naturalIconClass = "inline-flex size-8 shrink-0 items-center justify-center text-stone-600 transition hover:text-stone-950 dark:text-stone-300 dark:hover:text-white [&_svg]:size-4";
     const iconStyle: CSSProperties | undefined = variant === "canvas" ? { color: canvasTheme.node.text } : undefined;
     const avatarStyle: CSSProperties | undefined = variant === "canvas" ? { borderColor: canvasTheme.toolbar.border, color: canvasTheme.node.text, background: "transparent" } : undefined;
-    useEffect(() => {
-        if (!isLoggedIn) {
-            balanceRefreshKeyRef.current = "";
-            return;
-        }
-        if (balanceRefreshKeyRef.current === imageTier) return;
-        balanceRefreshKeyRef.current = imageTier;
-        void refreshBalanceStatus(imageTier);
-    }, [imageTier, isLoggedIn, refreshBalanceStatus]);
 
     const menuItems: ItemType[] = [
         { key: "user", disabled: true, label: <span className="font-medium text-current">{userName}</span> },
@@ -67,11 +56,11 @@ export function UserStatusActions({ showConfig = true, variant = "default", onOp
             ) : null}
             <AnimatedThemeToggler theme={theme} onThemeChange={setTheme} className={naturalIconClass} style={iconStyle} aria-label={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"} />
             {variant === "canvas" && user ? (
-                <Tooltip title="用户余额" placement="bottom">
-                    <div className="flex h-8 shrink-0 items-center gap-1.5 px-1.5 text-xs font-medium opacity-80 transition hover:opacity-100" style={{ color: canvasTheme.node.text }}>
+                <Tooltip title={"\u70b9\u51fb\u5237\u65b0\u7528\u6237\u4f59\u989d"} placement="bottom">
+                    <button type="button" className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 px-1.5 text-xs font-medium opacity-80 transition hover:opacity-100" style={{ color: canvasTheme.node.text }} onClick={() => void refreshBalanceStatus(imageTier)}>
                         <BalanceLight status={balanceStatus || user.balanceStatus || "unknown"} />
-                        <span>用户余额</span>
-                    </div>
+                        <span>{"\u7528\u6237\u4f59\u989d"}</span>
+                    </button>
                 </Tooltip>
             ) : null}
             {!user && onOpenShortcuts ? (
