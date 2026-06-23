@@ -46,7 +46,7 @@ function ensureSelectedTier(apiKeys: ImageApiKeys) {
 }
 
 function createStoredPoolUser(existingUser: AuthUser | null, balanceStatus: BalanceStatus): AuthUser {
-    if (existingUser) return { ...existingUser, unlimited: true, remaining: null, balanceStatus: existingUser.balanceStatus || balanceStatus || "unknown" };
+    if (existingUser) return { ...existingUser, unlimited: true, remaining: null, balanceStatus: "available" };
     return {
         id: "pool",
         username: "知梦用户",
@@ -58,7 +58,7 @@ function createStoredPoolUser(existingUser: AuthUser | null, balanceStatus: Bala
         used: 0,
         unlimited: true,
         remaining: null,
-        balanceStatus: balanceStatus || "unknown",
+        balanceStatus: "available",
         createdAt: "",
         updatedAt: "",
     };
@@ -104,8 +104,8 @@ export const useUserStore = create<UserStore>()(
                 }
                 ensureSelectedTier(apiKeys);
                 syncConfigApiKey(apiKeys, token);
-                const fallbackUser = createStoredPoolUser(get().user, get().balanceStatus);
-                set({ user: fallbackUser, apiKeys, balanceStatus: fallbackUser.balanceStatus || "unknown", isReady: true, isLoading: false });
+                const fallbackUser = createStoredPoolUser(get().user, get().balanceStatus || "available");
+                set({ user: fallbackUser, apiKeys, balanceStatus: "available", isReady: true, isLoading: false });
             },
             login: async (payload) => {
                 set({ isLoading: true });
@@ -114,7 +114,8 @@ export const useUserStore = create<UserStore>()(
                     const apiKeys = normalizeImageApiKeys(session.apiKeys);
                     ensureSelectedTier(apiKeys);
                     syncConfigApiKey(apiKeys, session.token);
-                    set({ token: session.token, apiKeys, authMode: "pool", user: session.user, balanceStatus: session.user.balanceStatus || "unknown", isReady: true, isLoading: false });
+                    // 登录成功后设置余额状态为可用（不再实际查询余额）
+                    set({ token: session.token, apiKeys, authMode: "pool", user: session.user, balanceStatus: "available", isReady: true, isLoading: false });
                     return session.user;
                 } catch (error) {
                     set({ isLoading: false });

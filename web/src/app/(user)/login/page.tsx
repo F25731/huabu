@@ -41,7 +41,7 @@ function LoginContent() {
         }
         try {
             await login({ apiKeys });
-            message.success("登录成功");
+            message.success("API Key 验证成功，登录完成");
             router.replace(redirect.startsWith("/") ? redirect : "/");
             router.refresh();
         } catch (error) {
@@ -62,7 +62,7 @@ function LoginContent() {
                         aria-label="知梦画布"
                     />
                     <h1 className="text-3xl font-semibold tracking-normal text-stone-950 dark:text-stone-100">知梦 Key 登录</h1>
-                    <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">按生图档位填写 API Key，1k、2k、4k 至少填一个。</p>
+                    <p className="mt-3 text-base leading-7 text-stone-500 dark:text-stone-400">填写知梦 API Key，登录时会验证连接有效性。1k、2k、4k 至少填一个。</p>
                 </div>
 
                 <Form<LoginFormValues> layout="vertical" size="large" requiredMark={false} onFinish={submit}>
